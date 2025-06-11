@@ -1,13 +1,16 @@
-from tkinter import *
-import tkinter as tk
+import keras
+import time
 import numpy as np
+import tkinter as tk
+from tkinter import *
+from keras.api.datasets import mnist
 from PIL import ImageGrab, Image
-from keras.models import load_model
+# from keras.models import load_model
+# import matplotlib.pyplot as plt
 
 class Screen(tk.Tk):
     def __init__(self, network):
         tk.Tk.__init__(self)
-
         self.__network = network
 
         self.x = self.y = 0
@@ -61,49 +64,68 @@ class Screen(tk.Tk):
         for n in range(10):
             getattr(self, 'result_' + str(n)).configure(text='...')
 
+        self.train_network_status.configure(text='')
+
     def train_network(self):
-        if self.__network.train():
-            self.train_network_status.configure(text='Обучено и сохранено')
-        else:
-            self.train_network_status.configure(text='Обучение не удалось')
+        self.train_network_status.configure(text='Запущено...')
+        self.update()
+
+        try:
+            if self.__network.train():
+                self.train_network_status.configure(text='Обучено и сохранено')
+            else:
+                self.train_network_status.configure(text='Обучение не удалось')
+        except Exception as e:
+            self.train_network_status.configure(text=e)
 
     def predict_number(self):
-        x, y = (self.canvas.winfo_rootx(), self.canvas.winfo_rooty())
-        width, height = (self.canvas.winfo_width(), self.canvas.winfo_height())
+        self.train_network_status.configure(text='')
 
-        img_coords = (x, y, x + width, y + height)
-        img = ImageGrab.grab(img_coords)
+        try:
+            x, y = (self.canvas.winfo_rootx(), self.canvas.winfo_rooty())
+            width, height = (self.canvas.winfo_width(), self.canvas.winfo_height())
 
-        # изменение рзмера изобржений на 28x28
-        img = img.resize((28, 28))
-        img.show()
-        # конвертируем rgb в grayscale
-        img = img.convert('L')
-        img = np.array(img)
-        # изменение размерности для поддержки модели ввода и нормализации; белый фон - 0, черная линия - 1
-        img = img.reshape(1, 28, 28, 1)
+            img_coords = (x, y, x + width, y + height)
+            img = ImageGrab.grab(img_coords)
 
-        # нвертируем чб цвета
-        img = img * -1
-        img = img + 255.0
-        img = img / 255.0
-        # print(img[0])
+            # изменение рзмера изобржений на 28x28
+            img = img.resize((28, 28))
 
-        # предстказание цифры
-        # res = self.__network.feedforward(img)
-        # print(*res)
-        # exit() #30eps лучший результат
-        # todo:return np.argmax(res), max(res)
-        model = load_model('mnist_30eps.h5')
-        model.summary()
-        result = model.predict(img)[0]
-        print(*result)
-        print(max(result))
+            # конвертируем rgb в grayscale
+            img = img.convert('L')
+            img = np.array(img).astype('float32')
 
-        predicted_number = np.argmax(result)
+            # img = img.reshape(28, 28, 1)
+            # plt.imshow(img, cmap='gray')
+            # plt.show()
 
-        for n in range(len(result)):
-            getattr(self, 'result_' + str(n)).configure(text=str(n) + ', ' + str(int(result[n] * 100)) + '%' + (' - ✅' if predicted_number == n else ''), fg='green' if predicted_number == n else 'black')
+            img = img.reshape(1, 28, 28, 1)
+
+            # нвертируем чб цвета
+            img = img * -1
+            img = img + 255.0
+            img = img / 255.0
+
+
+            # предстказание цифры
+            result = self.__network.feedforward(img)
+            print(result)
+
+            # (x_train, y_train), (x_test, y_test) = mnist.load_data()
+            # x_test = x_test.astype('float32') / 255
+            # print(x_test.shape)
+            #
+            # y_test = keras.utils.to_categorical(y_test, 10)
+            #
+            #
+            # print(model.evaluate(x_test, y_test, 1))
+
+            predicted_number = np.argmax(result)
+
+            for n in range(len(result)):
+                getattr(self, 'result_' + str(n)).configure(text=str(n) + ', ' + str(int(result[n] * 100)) + '%' + (' - ✅' if predicted_number == n else ''), fg='green' if predicted_number == n else 'black')
+        except:
+            self.train_network_status.configure(text='Ошибка распознования')
 
     def start_line(self, event):
         self.line_points.extend((event.x, event.y))
@@ -116,4 +138,4 @@ class Screen(tk.Tk):
         self.line_points.extend((event.x, event.y))
         if self.line_id is not None:
             self.canvas.delete(self.line_id)
-        self.line_id = self.canvas.create_line(self.line_points, **self.line_options, width=24)#32
+        self.line_id = self.canvas.create_line(self.line_points, **self.line_options, width=42)
