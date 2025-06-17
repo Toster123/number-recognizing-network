@@ -11,6 +11,7 @@ from PIL import ImageGrab, Image
 class Screen(tk.Tk):
     def __init__(self, network):
         tk.Tk.__init__(self)
+        self.title('Распознование цифр')
         self.__network = network
 
         self.x = self.y = 0
