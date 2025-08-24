@@ -11,7 +11,7 @@ from PIL import ImageGrab, Image
 class Screen(tk.Tk):
     def __init__(self, network):
         tk.Tk.__init__(self)
-        self.title('Распознование цифр')
+        self.title('Number recognition')
         self.__network = network
 
         self.x = self.y = 0
@@ -31,9 +31,9 @@ class Screen(tk.Tk):
         self.result_7 = tk.Label(self, text="...")
         self.result_8 = tk.Label(self, text="...")
         self.result_9 = tk.Label(self, text="...")
-        self.classify_button = tk.Button(self, text="Распознать", command=self.predict_number)
-        self.train_network_button = tk.Button(self, text="Переобучить", command=self.train_network)
-        self.clear_button = tk.Button(self, text="Очистить", command=self.clear)
+        self.classify_button = tk.Button(self, text="Recognize", command=self.predict_number)
+        self.train_network_button = tk.Button(self, text="Retrain", command=self.train_network)
+        self.clear_button = tk.Button(self, text="Clear", command=self.clear)
         self.train_network_status = tk.Label(self, text="")
 
         # Сетка окна
