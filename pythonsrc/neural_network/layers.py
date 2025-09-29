@@ -1,4 +1,4 @@
-import keras
+# import keras
 import numpy as np
 from abc import abstractmethod
 
@@ -97,12 +97,12 @@ class DenseLayer(Layer):
         return result
 
     def activate_relu(self, value):
-        # return max(0, value)
-        return keras.activations.relu(value)
+        return max(0, value)
+        # return keras.activations.relu(value)
 
     def activate_softmax(self, values):
-        # result = np.exp(values - max(values))
-        # result /= result.sum(axis=0)
+        result = np.exp(values - max(values))
+        result /= result.sum(axis=0)
 
-        # return result
-        return keras.activations.softmax(values).numpy()
+        return result
+        # return keras.activations.softmax(values).numpy()

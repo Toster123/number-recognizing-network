@@ -1,5 +1,5 @@
-from src.screen.screen import Screen
-from src.neural_network.network import SequentalNetwork
+from pythonsrc.screen.screen import Screen
+from pythonsrc.neural_network.network import SequentalNetwork
 
 
 class App():

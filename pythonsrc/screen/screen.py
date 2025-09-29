@@ -10,6 +10,14 @@ from PIL import ImageGrab, Image
 
 class Screen(tk.Tk):
     def __init__(self, network):
+
+        (x_train, y_train), (x_test, y_test) = mnist.load_data()
+        x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
+        print(x_test[0])
+        print(x_test[1])
+        print(x_test[2])
+
+        return;
         tk.Tk.__init__(self)
         self.title('Number recognition')
         self.__network = network
@@ -32,7 +40,7 @@ class Screen(tk.Tk):
         self.result_8 = tk.Label(self, text="...")
         self.result_9 = tk.Label(self, text="...")
         self.classify_button = tk.Button(self, text="Recognize", command=self.predict_number)
-        self.train_network_button = tk.Button(self, text="Retrain", command=self.train_network)
+        # self.train_network_button = tk.Button(self, text="Retrain", command=self.train_network)
         self.clear_button = tk.Button(self, text="Clear", command=self.clear)
         self.train_network_status = tk.Label(self, text="")
 
@@ -49,7 +57,7 @@ class Screen(tk.Tk):
         self.result_8.grid(row=8, column=2, pady=2, padx=2)
         self.result_9.grid(row=9, column=2, pady=2, padx=2)
         self.clear_button.grid(row=10, column=0, pady=2)
-        self.train_network_button.grid(row=10, column=1, pady=2)
+        # self.train_network_button.grid(row=10, column=1, pady=2)
         self.classify_button.grid(row=10, column=2, pady=2, padx=2)
         self.train_network_status.grid(row=11, column=1, pady=2, padx=2)
 
@@ -67,17 +75,17 @@ class Screen(tk.Tk):
 
         self.train_network_status.configure(text='')
 
-    def train_network(self):
-        self.train_network_status.configure(text='Запущено...')
-        self.update()
+    # def train_network(self):
+    #     self.train_network_status.configure(text='Запущено...')
+    #     self.update()
 
-        try:
-            if self.__network.train():
-                self.train_network_status.configure(text='Обучено и сохранено')
-            else:
-                self.train_network_status.configure(text='Обучение не удалось')
-        except Exception as e:
-            self.train_network_status.configure(text=e)
+    #     try:
+    #         if self.__network.train():
+    #             self.train_network_status.configure(text='Обучено и сохранено')
+    #         else:
+    #             self.train_network_status.configure(text='Обучение не удалось')
+    #     except Exception as e:
+    #         self.train_network_status.configure(text=e)
 
     def predict_number(self):
         self.train_network_status.configure(text='')

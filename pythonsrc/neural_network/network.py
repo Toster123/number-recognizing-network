@@ -1,8 +1,8 @@
 import os
-from keras.api.datasets import mnist
-from keras.api.models import Sequential
-from keras.api.layers import Dense, Flatten
-from keras.api.layers import Conv2D, MaxPooling2D
+# from keras.api.datasets import mnist
+# from keras.api.models import Sequential
+# from keras.api.layers import Dense, Flatten
+# from keras.api.layers import Conv2D, MaxPooling2D
 from .layers import *
 
 
@@ -65,61 +65,61 @@ class SequentalNetwork():
         self.__layers.append(DenseLayer(256, 128, weights6, shifts6))
         self.__layers.append(DenseLayer(128, 10, weights7, shifts7, 'softmax'))
 
-    def train(self):
-        try:
-            (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    # def train(self):
+    #     try:
+    #         (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
-            x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
-            x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
+    #         x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
+    #         x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
 
-            y_train = keras.utils.to_categorical(y_train, 10)
-            y_test = keras.utils.to_categorical(y_test, 10)
+    #         y_train = keras.utils.to_categorical(y_train, 10)
+    #         y_test = keras.utils.to_categorical(y_test, 10)
 
-            model = Sequential()
-            model.add(Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)))
-            model.add(Conv2D(32, (3, 3), activation='relu'))
-            model.add(MaxPooling2D(pool_size=(2, 2)))
-            model.add(Conv2D(64, kernel_size=(3, 3), activation='relu'))
-            model.add(Conv2D(64, (3, 3), activation='relu'))
-            model.add(MaxPooling2D(pool_size=(2, 2)))
+    #         model = Sequential()
+    #         model.add(Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)))
+    #         model.add(Conv2D(32, (3, 3), activation='relu'))
+    #         model.add(MaxPooling2D(pool_size=(2, 2)))
+    #         model.add(Conv2D(64, kernel_size=(3, 3), activation='relu'))
+    #         model.add(Conv2D(64, (3, 3), activation='relu'))
+    #         model.add(MaxPooling2D(pool_size=(2, 2)))
 
-            model.add(Flatten())
-            model.add(Dense(256, activation='relu'))
-            model.add(Dense(128, activation='relu'))
-            model.add(Dense(10, activation='softmax'))
+    #         model.add(Flatten())
+    #         model.add(Dense(256, activation='relu'))
+    #         model.add(Dense(128, activation='relu'))
+    #         model.add(Dense(10, activation='softmax'))
 
-            model.compile(loss=keras.losses.categorical_crossentropy, optimizer=keras.optimizers.Adadelta(),
-                          metrics=['accuracy'])
+    #         model.compile(loss=keras.losses.categorical_crossentropy, optimizer=keras.optimizers.Adadelta(),
+    #                       metrics=['accuracy'])
 
-            model.fit(x_train, y_train, batch_size=64, epochs=1, verbose=1, validation_data=(x_test, y_test))
+    #         model.fit(x_train, y_train, batch_size=64, epochs=1, verbose=1, validation_data=(x_test, y_test))
 
-        except:
-            raise Exception('Ошибка во время обучения')
+    #     except:
+    #         raise Exception('Ошибка во время обучения')
 
-        try:
-            f=open('weights.txt', 'w')
+    #     try:
+    #         f=open('weights.txt', 'w')
 
-            f.writelines(list(map(to_string, model.layers[0].get_weights()[0].reshape((3, 3, 1, 32)).transpose((3, 2, 0, 1)).flatten())))
-            f.writelines(list(map(to_string, model.layers[0].get_weights()[1].reshape((32)))))
-            f.writelines(list(map(to_string, model.layers[1].get_weights()[0].reshape((3, 3, 32, 32)).transpose((3, 2, 0, 1)).flatten())))
-            f.writelines(list(map(to_string, model.layers[1].get_weights()[1].reshape((32)))))
-            f.writelines(list(map(to_string, model.layers[3].get_weights()[0].reshape((3, 3, 32, 64)).transpose((3, 2, 0, 1)).flatten())))
-            f.writelines(list(map(to_string, model.layers[3].get_weights()[1].reshape((64)))))
-            f.writelines(list(map(to_string, model.layers[4].get_weights()[0].reshape((3, 3, 64, 64)).transpose((3, 2, 0, 1)).flatten())))
-            f.writelines(list(map(to_string, model.layers[4].get_weights()[1].reshape((64)))))
-            f.writelines(list(map(to_string, model.layers[7].get_weights()[0].reshape((4 * 4 * 64, 256)).transpose((1, 0)).flatten())))
-            f.writelines(list(map(to_string, model.layers[7].get_weights()[1].reshape((256)))))
-            f.writelines(list(map(to_string, model.layers[8].get_weights()[0].reshape((256, 128)).transpose((1, 0)).flatten())))
-            f.writelines(list(map(to_string, model.layers[8].get_weights()[1].reshape((128)))))
-            f.writelines(list(map(to_string, model.layers[9].get_weights()[0].reshape((128, 10)).transpose((1, 0)).flatten())))
-            f.writelines(list(map(to_string, model.layers[9].get_weights()[1].reshape((10)))))
+    #         f.writelines(list(map(to_string, model.layers[0].get_weights()[0].reshape((3, 3, 1, 32)).transpose((3, 2, 0, 1)).flatten())))
+    #         f.writelines(list(map(to_string, model.layers[0].get_weights()[1].reshape((32)))))
+    #         f.writelines(list(map(to_string, model.layers[1].get_weights()[0].reshape((3, 3, 32, 32)).transpose((3, 2, 0, 1)).flatten())))
+    #         f.writelines(list(map(to_string, model.layers[1].get_weights()[1].reshape((32)))))
+    #         f.writelines(list(map(to_string, model.layers[3].get_weights()[0].reshape((3, 3, 32, 64)).transpose((3, 2, 0, 1)).flatten())))
+    #         f.writelines(list(map(to_string, model.layers[3].get_weights()[1].reshape((64)))))
+    #         f.writelines(list(map(to_string, model.layers[4].get_weights()[0].reshape((3, 3, 64, 64)).transpose((3, 2, 0, 1)).flatten())))
+    #         f.writelines(list(map(to_string, model.layers[4].get_weights()[1].reshape((64)))))
+    #         f.writelines(list(map(to_string, model.layers[7].get_weights()[0].reshape((4 * 4 * 64, 256)).transpose((1, 0)).flatten())))
+    #         f.writelines(list(map(to_string, model.layers[7].get_weights()[1].reshape((256)))))
+    #         f.writelines(list(map(to_string, model.layers[8].get_weights()[0].reshape((256, 128)).transpose((1, 0)).flatten())))
+    #         f.writelines(list(map(to_string, model.layers[8].get_weights()[1].reshape((128)))))
+    #         f.writelines(list(map(to_string, model.layers[9].get_weights()[0].reshape((128, 10)).transpose((1, 0)).flatten())))
+    #         f.writelines(list(map(to_string, model.layers[9].get_weights()[1].reshape((10)))))
 
-            f.close()
-            self.init_weights(open('weights.txt', 'r'))
-        except:
-            raise Exception('Ошибка во время сохранения весов')
+    #         f.close()
+    #         self.init_weights(open('weights.txt', 'r'))
+    #     except:
+    #         raise Exception('Ошибка во время сохранения весов')
 
-        return 1
+    #     return 1
 
     def feedforward(self, values):
         values = np.array(values)
@@ -133,8 +133,8 @@ class SequentalNetwork():
     def layers(self):
         return self.__layers
 
-def categorical_crossentropy(y_true, y_pred):
-    return -(y_true * np.log(y_pred+0.001)).sum(axis=0)
+# def categorical_crossentropy(y_true, y_pred):
+#     return -(y_true * np.log(y_pred+0.001)).sum(axis=0)
 
-def to_string(s):
-    return str(s)+"\n"
+# def to_string(s):
+#     return str(s)+"\n"
