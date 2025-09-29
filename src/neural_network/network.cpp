@@ -65,9 +65,9 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
         layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{64, 10, 10}, std::array<size_t, 2>{3, 3}, 64));
         layers_.push_back(std::make_unique<MaxPooling2DLayer>(std::array<size_t, 3>{64, 8, 8}, std::array<size_t, 2>{2, 2}));
         layers_.push_back(std::make_unique<FlattenLayer>(std::array<size_t, 3>{64, 4, 4}));
-        layers_.push_back(std::make_unique<DenseLayer>(1024, 256, layers::kActivationReLU));
-        layers_.push_back(std::make_unique<DenseLayer>(256, 128, layers::kActivationReLU));
-        layers_.push_back(std::make_unique<DenseLayer>(128, 10, layers::kActivationSoftmax));
+        layers_.push_back(std::make_unique<DenseLayer>(1024, 256, layers::Activation::kActivationReLU));
+        layers_.push_back(std::make_unique<DenseLayer>(256, 128, layers::Activation::kActivationReLU));
+        layers_.push_back(std::make_unique<DenseLayer>(128, 10, layers::Activation::kActivationSoftmax));
         return;
     }
     
@@ -83,7 +83,7 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
     }
     std::vector<double> shifts1(weights.begin() + weights_index, weights.begin() + weights_index + 32);
     weights_index += 32;
-    layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{1, 28, 28}, std::array<size_t, 2>{3, 3}, 32, layers::kActivationReLU, kernels1, shifts1));
+    layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{1, 28, 28}, std::array<size_t, 2>{3, 3}, 32, layers::Activation::kActivationReLU, kernels1, shifts1));
     
     Matrix4D kernels2(32, Matrix3D(32, Matrix2D(3, std::vector<double>(3))));
     for (size_t i = 0; i < 32; ++i) {
@@ -97,7 +97,7 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
     }
     std::vector<double> shifts2(weights.begin() + weights_index, weights.begin() + weights_index + 32);
     weights_index += 32;
-    layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{32, 26, 26}, std::array<size_t, 2>{3, 3}, 32, layers::kActivationReLU, kernels2, shifts2));
+    layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{32, 26, 26}, std::array<size_t, 2>{3, 3}, 32, layers::Activation::kActivationReLU, kernels2, shifts2));
     
     layers_.push_back(std::make_unique<MaxPooling2DLayer>(std::array<size_t, 3>{32, 24, 24}, std::array<size_t, 2>{2, 2}));
     
@@ -113,7 +113,7 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
     }
     std::vector<double> shifts3(weights.begin() + weights_index, weights.begin() + weights_index + 64);
     weights_index += 64;
-    layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{32, 12, 12}, std::array<size_t, 2>{3, 3}, 64, layers::kActivationReLU, kernels3, shifts3));
+    layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{32, 12, 12}, std::array<size_t, 2>{3, 3}, 64, layers::Activation::kActivationReLU, kernels3, shifts3));
     
     Matrix4D kernels4(64, Matrix3D(64, Matrix2D(3, std::vector<double>(3))));
     for (size_t i = 0; i < 64; ++i) {
@@ -127,7 +127,7 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
     }
     std::vector<double> shifts4(weights.begin() + weights_index, weights.begin() + weights_index + 64);
     weights_index += 64;
-    layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{64, 10, 10}, std::array<size_t, 2>{3, 3}, 64, layers::kActivationReLU, kernels4, shifts4));    
+    layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{64, 10, 10}, std::array<size_t, 2>{3, 3}, 64, layers::Activation::kActivationReLU, kernels4, shifts4));    
     
     layers_.push_back(std::make_unique<MaxPooling2DLayer>(std::array<size_t, 3>{64, 8, 8}, std::array<size_t, 2>{2, 2}));
     
@@ -141,7 +141,7 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
     }
     std::vector<double> shifts5(weights.begin() + weights_index, weights.begin() + weights_index + 256);
     weights_index += 256;
-    layers_.push_back(std::make_unique<DenseLayer>(1024, 256, layers::kActivationReLU, weights5, shifts5));
+    layers_.push_back(std::make_unique<DenseLayer>(1024, 256, layers::Activation::kActivationReLU, weights5, shifts5));
     
     Matrix2D weights6(128, std::vector<double>(256));
     for (size_t i = 0; i < 128; ++i) {
@@ -151,7 +151,7 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
     }
     std::vector<double> shifts6(weights.begin() + weights_index, weights.begin() + weights_index + 128);
     weights_index += 128;
-    layers_.push_back(std::make_unique<DenseLayer>(256, 128, layers::kActivationReLU, weights6, shifts6));
+    layers_.push_back(std::make_unique<DenseLayer>(256, 128, layers::Activation::kActivationReLU, weights6, shifts6));
     
     Matrix2D weights7(10, std::vector<double>(128));
     for (size_t i = 0; i < 10; ++i) {
@@ -161,7 +161,7 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
     }
     std::vector<double> shifts7(weights.begin() + weights_index, weights.begin() + weights_index + 10);
     weights_index += 10;
-    layers_.push_back(std::make_unique<DenseLayer>(128, 10, layers::kActivationSoftmax, weights7, shifts7));
+    layers_.push_back(std::make_unique<DenseLayer>(128, 10, layers::Activation::kActivationSoftmax, weights7, shifts7));
     
     std::cout << "loaded " << weights_index << " weights" << std::endl;
 }

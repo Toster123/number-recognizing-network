@@ -23,9 +23,9 @@ namespace {
     };
 };
 
-Convolution2DLayer::Convolution2DLayer(const std::array<size_t, 3>& input_size, const std::array<size_t, 2>& kernel_size, size_t filters_count, const std::string& activation,
+Convolution2DLayer::Convolution2DLayer(const std::array<size_t, 3>& input_size, const std::array<size_t, 2>& kernel_size, size_t filters_count, const Activation& activation,
                                       const Matrix4D& kernels, const std::vector<double>& shifts)
-    : filters_count_(filters_count), input_size_(input_size), kernel_size_(kernel_size) {
+    : filters_count_(filters_count), input_size_(input_size), kernel_size_(kernel_size), activation_(activation) {
     
     output_size_ = {filters_count_, 1 + input_size_[1] - kernel_size_[0], 1 + input_size_[2] - kernel_size_[1]};
     
@@ -108,7 +108,7 @@ std::vector<double> FlattenLayer::FeedforwardFlat(const Matrix3D& input) const {
     return output;
 }
 
-DenseLayer::DenseLayer(size_t input_size, size_t output_size, const std::string& activation,
+DenseLayer::DenseLayer(size_t input_size, size_t output_size, const Activation& activation,
                       const Matrix2D& weights, const std::vector<double>& shifts)
     : input_size_(input_size), output_size_(output_size), activation_(activation) {
     
@@ -133,14 +133,14 @@ std::vector<double> DenseLayer::FeedforwardDense(const std::vector<double>& inpu
             output[j] += input[i] * weights_[j][i];
         }
         
-        if (activation_ == kActivationReLU) {
+        if (activation_ == Activation::kActivationReLU) {
             output[j] = ReLU(output[j] + shifts_[j]);
-        } else if (activation_ == kActivationSoftmax) {
+        } else if (activation_ == Activation::kActivationSoftmax) {
             output[j] += shifts_[j];
         }
     }
     
-    if (activation_ == kActivationSoftmax) {
+    if (activation_ == Activation::kActivationSoftmax) {
         output = Softmax(output);
     }
     

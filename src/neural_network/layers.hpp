@@ -8,8 +8,10 @@
 #include <array>
 
 namespace layers {
-    const std::string kActivationReLU = "relu";
-    const std::string kActivationSoftmax = "softmax";
+    enum Activation {
+        kActivationReLU,
+        kActivationSoftmax
+    };
 };
 
 using namespace layers;
@@ -27,7 +29,7 @@ public:
 
 class Convolution2DLayer : public Layer {
 public:
-    Convolution2DLayer(const std::array<size_t, 3>& input_size, const std::array<size_t, 2>& kernel_size, size_t filters_count, const std::string& activation = kActivationReLU,
+    Convolution2DLayer(const std::array<size_t, 3>& input_size, const std::array<size_t, 2>& kernel_size, size_t filters_count, const Activation& activation = kActivationReLU,
                       const Matrix4D& kernels = {}, const std::vector<double>& shifts = {});
     
     Matrix3D Feedforward(const Matrix3D& input) const override;
@@ -39,6 +41,7 @@ private:
     std::array<size_t, 3> output_size_;
     Matrix4D kernels_;
     std::vector<double> shifts_;
+    Activation activation_;
 };
 
 class MaxPooling2DLayer : public Layer {
@@ -66,7 +69,7 @@ private:
 
 class DenseLayer : public Layer {
 public:
-    DenseLayer(size_t input_size, size_t output_size, const std::string& activation = kActivationReLU,
+    DenseLayer(size_t input_size, size_t output_size, const Activation& activation = kActivationReLU,
               const Matrix2D& weights = {}, const std::vector<double>& shifts = {});
     
     std::vector<double> FeedforwardDense(const std::vector<double>& input) const override;
@@ -75,5 +78,5 @@ private:
     size_t input_size_, output_size_;
     Matrix2D weights_;
     std::vector<double> shifts_;
-    std::string activation_;
+    Activation activation_;
 };
