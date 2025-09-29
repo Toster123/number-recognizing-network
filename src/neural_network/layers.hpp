@@ -22,9 +22,9 @@ using Matrix4D = std::vector<std::vector<std::vector<std::vector<double>>>>;
 class Layer {
 public:
     virtual ~Layer() = default;
-    virtual std::vector<double> FeedforwardDense(const std::vector<double>& input) const { return {}; }
-    virtual Matrix3D Feedforward(const Matrix3D& input) const { return {}; }
-    virtual std::vector<double> FeedforwardFlat(const Matrix3D& input) const { return {}; }
+    virtual std::vector<double> FeedforwardDense(const std::vector<double>& input) const { return {}; };
+    virtual Matrix3D Feedforward(const Matrix3D& input) const { return {}; };
+    virtual std::vector<double> FeedforwardFlat(const Matrix3D& input) const { return {}; };
 };
 
 class Convolution2DLayer : public Layer {
