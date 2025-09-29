@@ -19,8 +19,8 @@ class DrawingCanvas : public QWidget {
 
 public:
     explicit DrawingCanvas(QWidget* parent = nullptr);
-    QImage getImage() const;
-    void clearCanvas();
+    QImage GetImage() const;
+    void ClearCanvas();
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -42,12 +42,12 @@ public:
     explicit Screen(std::unique_ptr<SequentialNetwork> network, QWidget* parent = nullptr);
 
 private slots:
-    void predict_number();
-    void clear_canvas();
+    void PredictNumber();
+    void ClearCanvas();
 
 private:
-    void setup_ui();
-    Matrix3D preprocess_image(const QImage& image);
+    void SetupUI();
+    Matrix3D PreprocessImage(const QImage& image);
     
     std::unique_ptr<SequentialNetwork> network_;
     DrawingCanvas* canvas_;

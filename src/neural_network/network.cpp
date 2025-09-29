@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <array>
 
 namespace {
     constexpr size_t kWeightsSize = 361578;
@@ -12,8 +13,7 @@ SequentialNetwork::SequentialNetwork() {
     std::vector<double> weights(kWeightsSize);
     
     if (LoadWeightsFromFile("weights.txt", weights)) {
-        InitWeights();
-        // InitWeights(weights);
+        InitWeights(weights);
     } else {
         InitWeights();
     }
@@ -58,13 +58,13 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
     }
     
     if (weights.size() < kWeightsSize) {
-        layers_.push_back(std::make_unique<Convolution2DLayer>({1, 28, 28}, {3, 3}, 32));
-        layers_.push_back(std::make_unique<Convolution2DLayer>({32, 26, 26}, {3, 3}, 32));
-        layers_.push_back(std::make_unique<MaxPooling2DLayer>({32, 24, 24}, {2, 2}));
-        layers_.push_back(std::make_unique<Convolution2DLayer>({32, 12, 12}, {3, 3}, 64));
-        layers_.push_back(std::make_unique<Convolution2DLayer>({64, 10, 10}, {3, 3}, 64));
-        layers_.push_back(std::make_unique<MaxPooling2DLayer>({64, 8, 8}, {2, 2}));
-        layers_.push_back(std::make_unique<FlattenLayer>({64, 4, 4}));
+        layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{1, 28, 28}, std::array<size_t, 2>{3, 3}, 32));
+        layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{32, 26, 26}, std::array<size_t, 2>{3, 3}, 32));
+        layers_.push_back(std::make_unique<MaxPooling2DLayer>(std::array<size_t, 3>{32, 24, 24}, std::array<size_t, 2>{2, 2}));
+        layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{32, 12, 12}, std::array<size_t, 2>{3, 3}, 64));
+        layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{64, 10, 10}, std::array<size_t, 2>{3, 3}, 64));
+        layers_.push_back(std::make_unique<MaxPooling2DLayer>(std::array<size_t, 3>{64, 8, 8}, std::array<size_t, 2>{2, 2}));
+        layers_.push_back(std::make_unique<FlattenLayer>(std::array<size_t, 3>{64, 4, 4}));
         layers_.push_back(std::make_unique<DenseLayer>(1024, 256, layers::kActivationReLU));
         layers_.push_back(std::make_unique<DenseLayer>(256, 128, layers::kActivationReLU));
         layers_.push_back(std::make_unique<DenseLayer>(128, 10, layers::kActivationSoftmax));
@@ -83,7 +83,7 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
     }
     std::vector<double> shifts1(weights.begin() + weights_index, weights.begin() + weights_index + 32);
     weights_index += 32;
-    layers_.push_back(std::make_unique<Convolution2DLayer>({1, 28, 28}, {3, 3}, 32, layers::kActivationReLU, kernels1, shifts1));
+    layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{1, 28, 28}, std::array<size_t, 2>{3, 3}, 32, layers::kActivationReLU, kernels1, shifts1));
     
     Matrix4D kernels2(32, Matrix3D(32, Matrix2D(3, std::vector<double>(3))));
     for (size_t i = 0; i < 32; ++i) {
@@ -97,9 +97,9 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
     }
     std::vector<double> shifts2(weights.begin() + weights_index, weights.begin() + weights_index + 32);
     weights_index += 32;
-    layers_.push_back(std::make_unique<Convolution2DLayer>({32, 26, 26}, {3, 3}, 32, layers::kActivationReLU, kernels2, shifts2));
+    layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{32, 26, 26}, std::array<size_t, 2>{3, 3}, 32, layers::kActivationReLU, kernels2, shifts2));
     
-    layers_.push_back(std::make_unique<MaxPooling2DLayer>({32, 24, 24}, {2, 2}));
+    layers_.push_back(std::make_unique<MaxPooling2DLayer>(std::array<size_t, 3>{32, 24, 24}, std::array<size_t, 2>{2, 2}));
     
     Matrix4D kernels3(64, Matrix3D(32, Matrix2D(3, std::vector<double>(3))));
     for (size_t i = 0; i < 64; ++i) {
@@ -113,7 +113,7 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
     }
     std::vector<double> shifts3(weights.begin() + weights_index, weights.begin() + weights_index + 64);
     weights_index += 64;
-    layers_.push_back(std::make_unique<Convolution2DLayer>({32, 12, 12}, {3, 3}, 64, layers::kActivationReLU, kernels3, shifts3));
+    layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{32, 12, 12}, std::array<size_t, 2>{3, 3}, 64, layers::kActivationReLU, kernels3, shifts3));
     
     Matrix4D kernels4(64, Matrix3D(64, Matrix2D(3, std::vector<double>(3))));
     for (size_t i = 0; i < 64; ++i) {
@@ -127,11 +127,11 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
     }
     std::vector<double> shifts4(weights.begin() + weights_index, weights.begin() + weights_index + 64);
     weights_index += 64;
-    layers_.push_back(std::make_unique<Convolution2DLayer>({64, 10, 10}, {3, 3}, 64, layers::kActivationReLU, kernels4, shifts4));    
+    layers_.push_back(std::make_unique<Convolution2DLayer>(std::array<size_t, 3>{64, 10, 10}, std::array<size_t, 2>{3, 3}, 64, layers::kActivationReLU, kernels4, shifts4));    
     
-    layers_.push_back(std::make_unique<MaxPooling2DLayer>({64, 8, 8}, {2, 2}));
+    layers_.push_back(std::make_unique<MaxPooling2DLayer>(std::array<size_t, 3>{64, 8, 8}, std::array<size_t, 2>{2, 2}));
     
-    layers_.push_back(std::make_unique<FlattenLayer>({64, 4, 4}));
+    layers_.push_back(std::make_unique<FlattenLayer>(std::array<size_t, 3>{64, 4, 4}));
     
     Matrix2D weights5(256, std::vector<double>(1024));
     for (size_t i = 0; i < 256; ++i) {
@@ -167,5 +167,5 @@ void SequentialNetwork::InitWeights(const std::vector<double>& weights) {
 }
 
 std::vector<double> SequentialNetwork::Feedforward(const Matrix3D& input) {
-    return layers_[9]->Feedforward(layers_[8]->Feedforward(layers_[7]->Feedforward(layers_[6]->Feedforward(layers_[5]->Feedforward(layers_[4]->Feedforward(layers_[3]->Feedforward(layers_[2]->Feedforward(layers_[1]->Feedforward(layers_[0]->Feedforward(input))))))))));
+    return layers_[9]->FeedforwardDense(layers_[8]->FeedforwardDense(layers_[7]->FeedforwardDense(layers_[6]->FeedforwardFlat(layers_[5]->Feedforward(layers_[4]->Feedforward(layers_[3]->Feedforward(layers_[2]->Feedforward(layers_[1]->Feedforward(layers_[0]->Feedforward(input))))))))));
 }

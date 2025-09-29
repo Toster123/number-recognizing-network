@@ -7,9 +7,8 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <iostream>
-// #include <algorithm>
 
-// DrawingCanvas implementation
+
 DrawingCanvas::DrawingCanvas(QWidget* parent) 
     : QWidget(parent), drawing_(false), pen_width_(40) {
     setFixedSize(500, 500);
@@ -18,11 +17,11 @@ DrawingCanvas::DrawingCanvas(QWidget* parent)
     setMouseTracking(false);
 }
 
-QImage DrawingCanvas::getImage() const {
+QImage DrawingCanvas::GetImage() const {
     return canvas_.toImage();
 }
 
-void DrawingCanvas::clearCanvas() {
+void DrawingCanvas::ClearCanvas() {
     canvas_.fill(Qt::white);
     update();
 }
@@ -56,92 +55,78 @@ void DrawingCanvas::mouseReleaseEvent(QMouseEvent* event) {
     }
 }
 
-// Screen implementation
 Screen::Screen(std::unique_ptr<SequentialNetwork> network, QWidget* parent)
     : QWidget(parent), network_(std::move(network)) {
     setWindowTitle("Number Recognition");
     setFixedSize(800, 540);
-    setup_ui();
+    SetupUI();
 }
 
-void Screen::setup_ui() {
+void Screen::SetupUI() {
     auto* main_layout = new QHBoxLayout(this);
     
     canvas_ = new DrawingCanvas(this);
     
-    auto* central_panel = new QVBoxLayout();
-    central_panel->addWidget(canvas_);
-    central_panel->addStretch();
+    auto* central_layout = new QVBoxLayout();
+    central_layout->addWidget(canvas_);
+    central_layout->addStretch();
 
-    main_layout->addLayout(central_panel);
+    main_layout->addLayout(central_layout);
     
-    // Right panel with results and controls
-    auto* right_panel = new QVBoxLayout();
+    auto* right_layout = new QVBoxLayout();
     
-    // Results grid
     auto* results_grid = new QGridLayout();
-    result_labels_.resize(10);
+    result_labels_.reserve(10);
     
-    for (int i = 0; i < 10; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
         result_labels_[i] = new QLabel("...", this);
         result_labels_[i]->setMinimumWidth(150);
-        result_labels_[i]->setStyleSheet("QLabel { padding: 5px; }");
+        result_labels_[i]->setStyleSheet("QLabel {padding: 5px;}");
         results_grid->addWidget(result_labels_[i], i, 0);
     }
     
-    right_panel->addLayout(results_grid);
+    right_layout->addLayout(results_grid);
     
-    // Buttons
     recognize_button_ = new QPushButton("Recognize", this);
     clear_button_ = new QPushButton("Clear", this);
     
-    connect(recognize_button_, &QPushButton::clicked, this, &Screen::predict_number);
-    connect(clear_button_, &QPushButton::clicked, this, &Screen::clear_canvas);
+    connect(recognize_button_, &QPushButton::clicked, this, &Screen::PredictNumber);
+    connect(clear_button_, &QPushButton::clicked, this, &Screen::ClearCanvas);
     
     auto* button_layout = new QHBoxLayout();
     button_layout->addWidget(clear_button_);
     button_layout->addWidget(recognize_button_);
-    right_panel->addLayout(button_layout);
+    right_layout->addLayout(button_layout);
     
-    // Status label
     status_label_ = new QLabel("", this);
-    status_label_->setStyleSheet("QLabel { color: red; }");
-    right_panel->addWidget(status_label_);
+    status_label_->setStyleSheet("QLabel {color: red;}");
+    right_layout->addWidget(status_label_);
     
-    // Add stretch to push everything up
-    right_panel->addStretch();
-    
-    main_layout->addLayout(right_panel);
+    right_layout->addStretch();
+    main_layout->addLayout(right_layout);
     
     setLayout(main_layout);
 }
 
-void Screen::predict_number() {
+void Screen::PredictNumber() {
     status_label_->setText("");
     
     try {
-        // Get image from canvas
-        QImage image = canvas_->getImage();
+        QImage image = canvas_->GetImage();
+        Matrix3D input = PreprocessImage(image);
         
-        // Preprocess the image
-        Matrix3D processed_input = preprocess_image(image);
+        std::vector<double> result = network_->Feedforward(input);
         
-        // Get prediction from network
-        std::vector<double> result = network_->Feedforward(processed_input);
+        int predicted_number = std::distance(result.begin(), std::max_element(result.begin(), result.end()));
         
-        // Find predicted number
-        int predicted_number = std::distance(result.begin(), 
-                                           std::max_element(result.begin(), result.end()));
-        
-        // Update result labels
         for (int i = 0; i < 10; ++i) {
-            int percentage = static_cast<int>(result[i] * 100);
-            QString text = QString("%1, %2%").arg(i).arg(percentage);
+            int confidence = static_cast<int>(result[i] * 100);
+            QString text = QString("%1, %2%").arg(i).arg(confidence);
             if (i == predicted_number) {
                 text += " - ✅";
-                result_labels_[i]->setStyleSheet("QLabel { padding: 5px; color: green; font-weight: bold; }");
+                result_labels_[i]->setStyleSheet("QLabel {padding: 5px; color: green; font-weight: bold;}");
             } else {
-                result_labels_[i]->setStyleSheet("QLabel { padding: 5px; color: black; }");
+                result_labels_[i]->setStyleSheet("QLabel {padding: 5px; color: black;}");
             }
             result_labels_[i]->setText(text);
         }
@@ -150,49 +135,42 @@ void Screen::predict_number() {
                   << (result[predicted_number] * 100) << "%" << std::endl;
         
     } catch (const std::exception& e) {
-        status_label_->setText("Error");
+        status_label_->setText("Error during recognition");
         std::cerr << e.what() << std::endl;
     }
 }
 
-void Screen::clear_canvas() {
-    canvas_->clearCanvas();
+void Screen::ClearCanvas() {
+    canvas_->ClearCanvas();
     
-    // Reset result labels
-    for (int i = 0; i < 10; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
         result_labels_[i]->setText("...");
-        result_labels_[i]->setStyleSheet("QLabel { padding: 5px; color: black; }");
+        result_labels_[i]->setStyleSheet("QLabel {padding: 5px; color: black;}");
     }
     
     status_label_->setText("");
 }
 
-Matrix3D Screen::preprocess_image(const QImage& image) {
-    // Convert to 28x28 grayscale
+Matrix3D Screen::PreprocessImage(const QImage& image) {
     QImage scaled_image = image.scaled(28, 28, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     QImage gray_image = scaled_image.convertToFormat(QImage::Format_Grayscale8);
     
-    // Create 3D matrix (1 channel, 28x28)
     Matrix3D result(1, Matrix2D(28, std::vector<double>(28)));
     
     for (int h = 0; h < 28; ++h) {
         for (int w = 0; w < 28; ++w) {
-            // Get pixel value (0-255)
             QRgb pixel = gray_image.pixel(w, h);
-            double gray_value = qGray(pixel);
+            double value = qGray(pixel);
             
-            // Invert colors (white background becomes black, black drawing becomes white)
-            gray_value = 255.0 - gray_value;
+            value = 255.0 - value;
             
-            // Normalize to [0, 1]
-            gray_value /= 255.0;
+            value /= 255.0;
             
-            result[0][h][w] = gray_value;
+            result[0][h][w] = value;
         }
     }
     
-    // Print all elements of the result matrix
-    std::cout << "Matrix elements:" << std::endl;
+    std::cout << "Image:" << std::endl;
     for (int h = 0; h < 28; ++h) {
         for (int w = 0; w < 28; ++w) {
             std::cout << result[0][h][w] << " ";
@@ -202,4 +180,3 @@ Matrix3D Screen::preprocess_image(const QImage& image) {
     
     return result;
 }
-
