@@ -80,7 +80,7 @@ class Screen(tk.Tk):
         self.fit_network_status.configure(text='')
 
     def start_fitting(self):
-        self.fitting_task = asyncio.run(self.fit_network)
+        self.fitting_task = asyncio.run(self.fit_network())
     
     def stop_fitting(self):
         if self.fitting_task:
