@@ -1,7 +1,6 @@
 import os
-
+import asyncio
 import keras
-import time
 from tqdm import tqdm
 from keras.api.datasets import mnist
 from keras.models import load_model
@@ -112,7 +111,7 @@ class SequentalNetwork():
             f.writelines(list(map(to_string, weights)))
 
 
-    def fit(self, bridge: ProgressBridge, epochs: int = 10, batch_size: int = 64, dataset_size: float = 0.1):
+    async def fit(self, bridge: ProgressBridge, epochs: int = 10, batch_size: int = 64, dataset_size: float = 0.1):
 
         EPOCHS = epochs
         BATCH_SIZE = batch_size
@@ -130,7 +129,7 @@ class SequentalNetwork():
             x_test = x_test[:int(x_test.shape[0] * DATASET_SIZE)]
             y_test = y_test[:int(x_test.shape[0] * DATASET_SIZE)]
 
-            EPOCH_SIZE = x_train.shape[0] // min(x_train.shape[0], BATCH_SIZE)
+            EPOCH_SIZE = x_train.shape[0] // BATCH_SIZE
 
             x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
             x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
@@ -140,13 +139,13 @@ class SequentalNetwork():
 
             for epoch in range(EPOCHS):
                 print(f"ep {epoch}")
-                bridge.add_bar(f"ep_{epoch}", total=EPOCH_SIZE, desc=f"Epoch {epoch+1}/{EPOCHS}")
                 
+                bridge.add_bar(f"ep_{epoch}", total=EPOCH_SIZE, desc=f"Epoch {epoch+1}/{EPOCHS}")
                 for batch in range(EPOCH_SIZE):
                     #MARK: todo: train
-                    time.sleep(0.1)
-                    
-                    bridge.update(f"ep_{epoch}", batch)
+                    await asyncio.sleep(0.1)
+
+                    bridge.update(f"ep_{epoch}")
                 
                 # with open(self.__weights_path, 'w') as f:
                 #     self.save_weights(f)
@@ -154,7 +153,6 @@ class SequentalNetwork():
                 bridge.close_bar(f"ep_{epoch}")
 
             bridge.mark_finished()
-            
         
         except Exception as e:
             raise Exception('Fitting error: ' + str(e))

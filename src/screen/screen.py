@@ -1,6 +1,6 @@
 import asyncio
-import threading
 import time
+import threading
 import numpy as np
 import tkinter as tk
 from tkinter import *
@@ -40,7 +40,11 @@ class Screen(tk.Tk):
         self.dataset_size_input = tk.Spinbox(self, from_=0, to=1, increment=0.1, textvariable=tk.DoubleVar(value=0.1))
         self.fit_network_button = tk.Button(self, text="Start fitting", command=self.start_fitting)
         self.stop_fitting_button = tk.Button(self, text="Stop fitting", command=self.stop_fitting)
-        self.fit_network_log = tk.Text(self, state=DISABLED)
+        self.fit_network_log = tk.Text(self)
+        self.fit_task = None
+        self.show_task = None
+        self.fit_loop = None
+        self.progress_loop = None
 
         # Сетка окна
         self.canvas.grid(row=0, rowspan=10, column=0, columnspan=2, pady=2, sticky=W)
@@ -78,25 +82,43 @@ class Screen(tk.Tk):
 
         self.fit_network_log.delete('1.0', tk.END)
         self.fit_network_status.configure(text='')
-
-    def start_fitting(self):
-        self.fitting_task = asyncio.run(self.fit_network())
     
     def stop_fitting(self):
-        if self.fitting_task:
-            self.fitting_task.cancel()
-            self.classify_button.configure(state=NORMAL)
-            self.fit_network_status.configure(text='Fitting stopped')
+        if self.fit_loop is not None and self.fit_task is not None:
+            self.fit_loop.call_soon_threadsafe(self.fit_task.cancel)
+            self.fit_loop.stop()
+        if self.progress_loop is not None and self.show_task is not None:
+            self.progress_loop.call_soon_threadsafe(self.show_task.cancel)
+            self.progress_loop.stop()
 
-    async def fit_network(self):
+        self.fit_task = None
+        self.show_task = None
+        self.fit_loop = None
+        self.progress_loop = None
+        self.classify_button.configure(state=NORMAL)
+        self.fit_network_status.configure(text='Fitting stopped')
+
+    def start_fitting(self):
         try:
             bridge = ProgressBridge()
-            # Запускаем синхронные вычисления в отдельном потоке
-            fit_thread = threading.Thread(target=self.network.fit, args=(bridge, int(self.epochs_input.get()), int(self.batch_size_input.get()), float(self.dataset_size_input.get())), daemon=True)
-            show_thread = threading.Thread(target=lambda: asyncio.run(self.show_fit_progress(bridge)), daemon=True)
 
-            fit_thread.start()
-            show_thread.start()
+            def start_loop(loop):
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_forever()
+                finally:
+                    loop.close()
+
+            self.fit_loop = asyncio.new_event_loop()
+            t1 = threading.Thread(target=start_loop, args=(self.fit_loop,), daemon=True)
+            t1.start()
+
+            self.progress_loop = asyncio.new_event_loop()
+            t2 = threading.Thread(target=start_loop, args=(self.progress_loop,), daemon=True)
+            t2.start()
+            
+            self.fit_task = asyncio.run_coroutine_threadsafe(self.network.fit(bridge, int(self.epochs_input.get()), int(self.batch_size_input.get()), float(self.dataset_size_input.get())), self.fit_loop)
+            self.show_task = asyncio.run_coroutine_threadsafe(self.show_fit_progress(bridge), self.progress_loop)
         except Exception as e:
             self.fit_network_status.configure(text=str(e))
             self.classify_button.configure(state=NORMAL)
@@ -114,6 +136,7 @@ class Screen(tk.Tk):
 
         # Отдаём строки в UI по мере готовности
         async for _, bar_str in bridge.stream():
+            print(bar_str)
             if bar_str is None:
                 progress += str(latest_bar_str) + '\n'
             else:
@@ -121,9 +144,11 @@ class Screen(tk.Tk):
                 if now - last_ui_update >= THROTTLE:
                     last_ui_update = now
                     self.fit_network_log.delete('1.0', tk.END)
-                    self.fit_network_log.insert(progress + bar_str)
+                    self.fit_network_log.insert('1.0', progress + bar_str)
             latest_bar_str = bar_str
         else:
+            self.fit_network_log.delete('1.0', tk.END)
+            self.fit_network_log.insert('1.0', progress)
             self.fit_network_status.configure(text='Fitting done!')
             self.classify_button.configure(state=NORMAL)
 
