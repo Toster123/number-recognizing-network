@@ -1,18 +1,18 @@
-import keras
+import asyncio
+import threading
 import time
 import numpy as np
 import tkinter as tk
 from tkinter import *
-from keras.api.datasets import mnist
-from PIL import ImageGrab, Image
-# from keras.models import load_model
-# import matplotlib.pyplot as plt
+from PIL import ImageGrab
+from ..neural_network.utils import ProgressBridge
+
 
 class Screen(tk.Tk):
     def __init__(self, network):
         tk.Tk.__init__(self)
         self.title('Number recognition')
-        self.__network = network
+        self.network = network
 
         self.x = self.y = 0
 
@@ -32,9 +32,15 @@ class Screen(tk.Tk):
         self.result_8 = tk.Label(self, text="...")
         self.result_9 = tk.Label(self, text="...")
         self.classify_button = tk.Button(self, text="Recognize", command=self.predict_number)
-        self.train_network_button = tk.Button(self, text="Retrain", command=self.train_network)
         self.clear_button = tk.Button(self, text="Clear", command=self.clear)
-        self.train_network_status = tk.Label(self, text="")
+        self.fit_network_status = tk.Label(self, text="")
+
+        self.epochs_input = tk.Spinbox(self, from_=1, to=100, textvariable=tk.IntVar(value=10))
+        self.batch_size_input = tk.Spinbox(self, from_=1, to=5000, increment=16, textvariable=tk.IntVar(value=64))
+        self.dataset_size_input = tk.Spinbox(self, from_=0, to=1, increment=0.1, textvariable=tk.DoubleVar(value=0.1))
+        self.fit_network_button = tk.Button(self, text="Start fitting", command=self.start_fitting)
+        self.stop_fitting_button = tk.Button(self, text="Stop fitting", command=self.stop_fitting)
+        self.fit_network_log = tk.Text(self, state=DISABLED)
 
         # Сетка окна
         self.canvas.grid(row=0, rowspan=10, column=0, columnspan=2, pady=2, sticky=W)
@@ -49,9 +55,15 @@ class Screen(tk.Tk):
         self.result_8.grid(row=8, column=2, pady=2, padx=2)
         self.result_9.grid(row=9, column=2, pady=2, padx=2)
         self.clear_button.grid(row=10, column=0, pady=2)
-        self.train_network_button.grid(row=10, column=1, pady=2)
-        self.classify_button.grid(row=10, column=2, pady=2, padx=2)
-        self.train_network_status.grid(row=11, column=1, pady=2, padx=2)
+        self.classify_button.grid(row=10, column=1, columnspan=2, pady=2, padx=2)
+        self.fit_network_status.grid(row=11, column=1, pady=2, padx=2)
+
+        self.epochs_input.grid(row=0, column=3, pady=2, padx=2)
+        self.batch_size_input.grid(row=1, column=3, pady=2, padx=2)
+        self.dataset_size_input.grid(row=2, column=3, pady=2, padx=2)
+        self.fit_network_button.grid(row=3, column=3, pady=2, padx=2)
+        self.stop_fitting_button.grid(row=4, column=3, pady=2, padx=2)
+        self.fit_network_log.grid(row=5, rowspan=7, column=3, pady=2, sticky=W)
 
         self.canvas.bind('<Button-1>', self.start_line)
         self.canvas.bind('<B1-Motion>', self.draw_line)
@@ -61,26 +73,62 @@ class Screen(tk.Tk):
 
     def clear(self):
         self.canvas.delete("all")
-
         for n in range(10):
             getattr(self, 'result_' + str(n)).configure(text='...')
 
-        self.train_network_status.configure(text='')
+        self.fit_network_log.delete('1.0', tk.END)
+        self.fit_network_status.configure(text='')
 
-    def train_network(self):
-        self.train_network_status.configure(text='Запущено...')
-        self.update()
+    def start_fitting(self):
+        self.fitting_task = asyncio.run(self.fit_network)
+    
+    def stop_fitting(self):
+        if self.fitting_task:
+            self.fitting_task.cancel()
+            self.classify_button.configure(state=NORMAL)
+            self.fit_network_status.configure(text='Fitting stopped')
 
+    async def fit_network(self):
         try:
-            if self.__network.train():
-                self.train_network_status.configure(text='Обучено и сохранено')
-            else:
-                self.train_network_status.configure(text='Обучение не удалось')
+            bridge = ProgressBridge()
+            # Запускаем синхронные вычисления в отдельном потоке
+            fit_thread = threading.Thread(target=self.network.fit, args=(bridge, int(self.epochs_input.get()), int(self.batch_size_input.get()), float(self.dataset_size_input.get())), daemon=True)
+            show_thread = threading.Thread(target=lambda: asyncio.run(self.show_fit_progress(bridge)), daemon=True)
+
+            fit_thread.start()
+            show_thread.start()
         except Exception as e:
-            self.train_network_status.configure(text=e)
+            self.fit_network_status.configure(text=str(e))
+            self.classify_button.configure(state=NORMAL)
+
+    async def show_fit_progress(self, bridge: ProgressBridge):
+        self.fit_network_status.configure(text='Fitting...')
+        self.fit_network_log.delete('1.0', tk.END)
+        self.classify_button.configure(state=DISABLED)
+
+        THROTTLE = 0.15  # обновляем UI не чаще 6-7 раз в секунду
+
+        progress = ''
+        latest_bar_str = ''
+        last_ui_update = time.monotonic()
+
+        # Отдаём строки в UI по мере готовности
+        async for _, bar_str in bridge.stream():
+            if bar_str is None:
+                progress += str(latest_bar_str) + '\n'
+            else:
+                now = time.monotonic()
+                if now - last_ui_update >= THROTTLE:
+                    last_ui_update = now
+                    self.fit_network_log.delete('1.0', tk.END)
+                    self.fit_network_log.insert(progress + bar_str)
+            latest_bar_str = bar_str
+        else:
+            self.fit_network_status.configure(text='Fitting done!')
+            self.classify_button.configure(state=NORMAL)
 
     def predict_number(self):
-        self.train_network_status.configure(text='')
+        self.fit_network_status.configure(text='')
 
         try:
             x, y = (self.canvas.winfo_rootx(), self.canvas.winfo_rooty())
@@ -102,31 +150,21 @@ class Screen(tk.Tk):
 
             img = img.reshape(1, 28, 28, 1)
 
-            # нвертируем чб цвета
+            # инвертируем чб цвета
             img = img * -1
             img = img + 255.0
             img = img / 255.0
 
-
             # предстказание цифры
-            result = self.__network.feedforward(img)
+            result = self.network.feedforward(img)
             print(result)
-
-            # (x_train, y_train), (x_test, y_test) = mnist.load_data()
-            # x_test = x_test.astype('float32') / 255
-            # print(x_test.shape)
-            #
-            # y_test = keras.utils.to_categorical(y_test, 10)
-            #
-            #
-            # print(model.evaluate(x_test, y_test, 1))
 
             predicted_number = np.argmax(result)
 
             for n in range(len(result)):
                 getattr(self, 'result_' + str(n)).configure(text=str(n) + ', ' + str(int(result[n] * 100)) + '%' + (' - ✅' if predicted_number == n else ''), fg='green' if predicted_number == n else 'black')
         except:
-            self.train_network_status.configure(text='Ошибка распознования')
+            self.fit_network_status.configure(text='Error during recognition')
 
     def start_line(self, event):
         self.line_points.extend((event.x, event.y))

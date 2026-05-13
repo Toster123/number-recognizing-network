@@ -1,4 +1,3 @@
-import keras
 import numpy as np
 from abc import abstractmethod
 
@@ -11,27 +10,28 @@ class Layer():
     def feedforward(self, values):
         pass
 
+    @abstractmethod
+    def flatten_weights(self):
+        pass
+
+
+def activate_relu(values: np.ndarray[np.float64]) -> np.ndarray[np.float64]:
+    return np.maximum(values, 0)
+
+def activate_softmax(values: np.ndarray[np.float64]) -> np.ndarray[np.float64]:
+    result = np.exp(values - np.max(values))
+    result /= result.sum(axis=0)
+
+    return result
+
 
 class Convolution2DLayer(Layer):
     def __init__(self, input_size=(1, 3, 3), kernel_size=(3, 3), filters_count=1, kernels=0, shifts=0):
         super().__init__(input_size)
-        self.__filters_count = filters_count
         self.__kernel_size = kernel_size
         self.__kernels = kernels if isinstance(kernels, np.ndarray) else np.random.normal(size=(filters_count, input_size[0], *kernel_size))
         self.__shifts = shifts if isinstance(shifts, np.ndarray) else np.random.normal(size=(filters_count))
         self.__output_size = (filters_count, 1 + input_size[1] - kernel_size[0], 1 + input_size[2] - kernel_size[1])
-
-    @property
-    def output_size(self):
-        return self.__output_size
-
-    @property
-    def kernels(self):
-        return self.__kernels
-
-    @property
-    def shifts(self):
-        return self.__shifts
 
     def feedforward(self, values):
         result = np.empty(self.__output_size)
@@ -39,12 +39,11 @@ class Convolution2DLayer(Layer):
         for k in range(self.__output_size[0]):
             for i in range(self.__output_size[1]):
                 for j in range(self.__output_size[2]):
-                    result[k][i][j] = keras.activations.relu(np.sum(self.__kernels[k:k+1,:,:,:] * values[:, i:i+self.__kernel_size[0], j:j+self.__kernel_size[1]]) + self.__shifts[k])
-
+                    result[k][i][j] = activate_relu(np.sum(self.__kernels[k:k+1,:,:,:] * values[:, i:i+self.__kernel_size[0], j:j+self.__kernel_size[1]]) + self.__shifts[k])
         return result
-
-    def activate_relu(self, value):
-        return max(0, value)
+    
+    def flatten_weights(self):
+        return self.__kernels.flatten(), self.__shifts.flatten()
 
 
 class MaxPooling2DLayer(Layer):
@@ -64,6 +63,8 @@ class MaxPooling2DLayer(Layer):
 
         return result
 
+    def flatten_weights(self):
+        return np.array([]), np.array([])
 
 class FlattenLayer(Layer):
     def __init__(self, input_size=(1, 2, 2)):
@@ -72,13 +73,16 @@ class FlattenLayer(Layer):
 
     def feedforward(self, values):
         return values.transpose((1, 2, 0)).flatten()
+    
+    def flatten_weights(self):
+        return np.array([]), np.array([])
 
 
 class DenseLayer(Layer):
-    def __init__(self, input_size=1, neurons_count=1, weights=0, shifts=0, activation='relu'):
+    def __init__(self, input_size=1, neurons_count=1, weights=0, shifts=0, activation_func=activate_relu):
         super().__init__(input_size)
         self.__output_size = neurons_count
-        self.__activation = activation
+        self.__activation_func = activation_func
         self.__weights = weights if isinstance(weights, np.ndarray) else np.random.normal(size=(neurons_count, input_size))
         self.__shifts = shifts if isinstance(shifts, np.ndarray) else np.random.normal(size=(neurons_count))
 
@@ -86,23 +90,8 @@ class DenseLayer(Layer):
         result = np.empty(self.__output_size)
 
         for k in range(self.__output_size):
-            if self.__activation == 'relu':
-                result[k] = self.activate_relu(sum(values * self.__weights[k]) + self.__shifts[k])
-            elif self.__activation == 'softmax':
-                result[k] = sum(values * self.__weights[k]) + self.__shifts[k]
-
-        if self.__activation == 'softmax':
-            return self.activate_softmax(result)
-
-        return result
-
-    def activate_relu(self, value):
-        # return max(0, value)
-        return keras.activations.relu(value)
-
-    def activate_softmax(self, values):
-        # result = np.exp(values - max(values))
-        # result /= result.sum(axis=0)
-
-        # return result
-        return keras.activations.softmax(values).numpy()
+            result[k] = sum(values * self.__weights[k]) + self.__shifts[k]
+        return self.__activation_func(result)
+    
+    def flatten_weights(self):
+        return self.__weights.flatten(), self.__shifts.flatten()
