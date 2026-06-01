@@ -5,7 +5,7 @@ from tqdm import tqdm
 from keras.api.datasets import mnist
 from keras.models import load_model
 from .layers import *
-from .utils import ProgressBridge
+from .utils import ProgressBridge, center_and_scale_digit
 
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -122,7 +122,9 @@ class SequentalNetwork():
             #     self.save_weights(f)
             #     f.close()
             
+            print('Loading dataset')
             (x_train, y_train), (x_test, y_test) = mnist.load_data()
+            print('Dataset loaded')
 
             x_train = x_train[:int(x_train.shape[0] * DATASET_SIZE)]
             y_train = y_train[:int(y_train.shape[0] * DATASET_SIZE)]
@@ -131,9 +133,9 @@ class SequentalNetwork():
 
             EPOCH_SIZE = x_train.shape[0] // BATCH_SIZE
 
-            x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
-            x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
-
+            x_train = x_train.reshape(x_train.shape[0], 28, 28, 1) / 255.0
+            x_test = x_test.reshape(x_test.shape[0], 28, 28, 1) / 255.0
+            
             y_train = keras.utils.to_categorical(y_train, 10)
             y_test = keras.utils.to_categorical(y_test, 10)
 
@@ -158,13 +160,25 @@ class SequentalNetwork():
             raise Exception('Fitting error: ' + str(e))
 
 
-    def feedforward(self, values):
-        values = np.array(values)
+    def feedforward(self, values: np.ndarray) -> np.ndarray:
+        """
+        Предсказание цифры
+        :param values: матрица изображения с элементами 0-255
+        :return: массив вероятностей для каждого класса
+        """
+        values = center_and_scale_digit(values).astype('float32').reshape(1, 28, 28, 1) / 255.0
+        
+        # import matplotlib.pyplot as plt
+        # plt.imshow(values[0], cmap='gray')
+        # plt.show()
 
         for layer in self.__layers:
             values = layer.feedforward(values)
 
         return values
+    
+    def __call__(self, values: np.ndarray) -> np.ndarray:
+        return self.feedforward(values)
 
 
 def categorical_crossentropy(y_true, y_pred):

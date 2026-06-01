@@ -155,41 +155,42 @@ class Screen(tk.Tk):
     def predict_number(self):
         self.fit_network_status.configure(text='')
 
-        try:
-            x, y = (self.canvas.winfo_rootx(), self.canvas.winfo_rooty())
-            width, height = (self.canvas.winfo_width(), self.canvas.winfo_height())
+        # try:
+        x, y = (self.canvas.winfo_rootx(), self.canvas.winfo_rooty())
+        width, height = (self.canvas.winfo_width(), self.canvas.winfo_height())
 
-            img_coords = (x, y, x + width, y + height)
-            img = ImageGrab.grab(img_coords)
+        img_coords = (x, y, x + width, y + height)
+        img = ImageGrab.grab(img_coords)
 
-            # изменение рзмера изобржений на 28x28
-            img = img.resize((28, 28))
+        # изменение рзмера изобржений на 28x28
+        img = img.resize((28, 28))
 
-            # конвертируем rgb в grayscale
-            img = img.convert('L')
-            img = np.array(img).astype('float32')
+        # конвертируем rgb в grayscale
+        img = img.convert('L')
+        img = np.array(img).astype('uint8')
 
-            # img = img.reshape(28, 28, 1)
-            # plt.imshow(img, cmap='gray')
-            # plt.show()
+        # img = img.reshape(28, 28, 1)
+        # plt.imshow(img, cmap='gray')
+        # plt.show()
 
-            img = img.reshape(1, 28, 28, 1)
+        img = img.reshape(28, 28, 1)
 
-            # инвертируем чб цвета
-            img = img * -1
-            img = img + 255.0
-            img = img / 255.0
+        # инвертируем чб цвета
+        img = img * -1
+        img = img + 255
 
-            # предстказание цифры
-            result = self.network.feedforward(img)
-            print(result)
+        # предстказание цифры
+        result = self.network(img)
+        print(result)
 
-            predicted_number = np.argmax(result)
+        predicted_number = np.argmax(result)
 
-            for n in range(len(result)):
-                getattr(self, 'result_' + str(n)).configure(text=str(n) + ', ' + str(int(result[n] * 100)) + '%' + (' - ✅' if predicted_number == n else ''), fg='green' if predicted_number == n else 'black')
-        except:
-            self.fit_network_status.configure(text='Error during recognition')
+        for n in range(len(result)):
+            getattr(self, 'result_' + str(n)).configure(text=str(n) + ', ' + str(int(result[n] * 100)) + '%' + (' - ✅' if predicted_number == n else ''), fg='green' if predicted_number == n else 'black')
+        # except Exception as e:
+        #     self.fit_network_status.configure(text='Error during recognition')
+        #     self.fit_network_log.delete('1.0', tk.END)
+        #     self.fit_network_log.insert('1.0', "Error during recognition: " + str(e))
 
     def start_line(self, event):
         self.line_points.extend((event.x, event.y))
