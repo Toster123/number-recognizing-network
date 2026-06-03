@@ -179,9 +179,12 @@ class Screen(tk.Tk):
         img = img * -1
         img = img + 255
 
+        # убираем шум
+        img[img < 20] = 0
+
         # предстказание цифры
         result = self.network(img)[0]
-        print(result)
+        print("Pred: ", result)
 
         predicted_number = np.argmax(result)
 

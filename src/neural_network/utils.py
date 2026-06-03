@@ -54,7 +54,6 @@ class ProgressBridge:
 def center_and_scale_digit(image: np.ndarray[np.uint8]) -> np.ndarray[np.float32]:
     """Центрирование и масштабирование изображения (фон уже черный)"""
     
-    image[image < 20] = 0  # Убираем шум
     img = Image.fromarray(image.reshape(28, 28).astype('uint8'), mode='L')
     
     bbox = img.getbbox()
@@ -89,4 +88,4 @@ def center_and_scale_digit(image: np.ndarray[np.uint8]) -> np.ndarray[np.float32
     # Конвертация в np.array
     return np.array(centred_digit).reshape(1, 28, 28).astype('float32')
 
-center_and_scale_digits = np.vectorize(center_and_scale_digit)
+center_and_scale_digits = np.vectorize(center_and_scale_digit, signature='(n,m,k)->(n,m,k)')
