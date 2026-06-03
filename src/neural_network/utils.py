@@ -3,6 +3,7 @@ import threading
 import queue
 import io
 import numpy as np
+from typing import Optional
 from tqdm import tqdm
 from PIL import Image
 from scipy import ndimage
@@ -21,11 +22,14 @@ class ProgressBridge:
             self._bars[uid] = bar
         return bar
 
-    def update(self, uid: str, n: int = 1) -> None:
+    def update(self, uid: str, n: int = 1, postfix: Optional[str] = None) -> None:
         """Обновляет бар и сразу отправляет строку в очередь"""
         with self._lock:
             if uid in self._bars:
-                self._bars[uid].update(n)
+                self._bars[uid].n = n
+                if postfix: 
+                    self._bars[uid].set_postfix(postfix)
+
                 # str(bar) даёт готовую строку вида " 40%|████      | 4/10 [00:00<00:00,  4.00it/s]"
                 self._q.put_nowait((uid, str(self._bars[uid])))
 

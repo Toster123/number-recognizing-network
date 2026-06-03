@@ -126,7 +126,7 @@ class Screen(tk.Tk):
             self.classify_button.configure(state=NORMAL)
 
     async def show_fit_progress(self, bridge: ProgressBridge):
-        self.fit_network_status.configure(text='Fitting...')
+        self.fit_network_status.configure(text='Weights backed up. Fitting...')
         self.fit_network_log.delete('1.0', tk.END)
         self.classify_button.configure(state=DISABLED)
 

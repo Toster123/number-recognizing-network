@@ -125,17 +125,27 @@ class SequentalNetwork():
 
             for epoch in range(EPOCHS):
                 print(f"ep {epoch}")
-                
                 bridge.add_bar(f"ep_{epoch}", total=EPOCH_SIZE, desc=f"Epoch {epoch+1}/{EPOCHS}")
+
+                x_train, y_train = shuffle(x_train, y_train, random_state=42)
+                
                 for batch in range(EPOCH_SIZE):
+                    batch_X = x_train[batch*BATCH_SIZE:(batch+1)*BATCH_SIZE]
+                    batch_Y = y_train[batch*BATCH_SIZE:(batch+1)*BATCH_SIZE]
+
                     #MARK: todo: train
                     await asyncio.sleep(0.1)
-
-                    bridge.update(f"ep_{epoch}")
+                    loss = acc = 0
+                    bridge.update(f"ep_{epoch}", n=batch+1, postfix=f"loss: {loss:.4f}; acc: {acc:.4f}")
                 
+                loss = acc = 0
+                val_loss = val_acc = 0
+
                 # with open(self.__weights_path, 'w') as f:
                 #     self.save_weights(f)
                 #     f.close()
+
+                bridge.update(f"ep_{epoch}", n=batch+1, postfix=f"train_loss: {loss:.4f}; train_acc: {acc:.4f}; val_loss: {val_loss:.4f}; val_acc: {val_acc:.4f}. Weights file updated.")
                 bridge.close_bar(f"ep_{epoch}")
 
             bridge.mark_finished()
