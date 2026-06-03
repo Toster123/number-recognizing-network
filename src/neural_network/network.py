@@ -1,6 +1,8 @@
 import os
 import asyncio
 import keras
+import _io
+from typing import Optional
 from tqdm import tqdm
 from keras.datasets import mnist
 from keras.models import load_model
@@ -20,7 +22,7 @@ class SequentalNetwork():
             self.parse_trained_weights()
 
         if not (os.path.exists(self.__weights_path) and (f:=open(self.__weights_path, 'r'))):
-            f=0
+            f = None
 
         self.init_weights(f)
 
@@ -45,7 +47,7 @@ class SequentalNetwork():
 
                 f.close()
 
-    def init_weights(self, f=0):
+    def init_weights(self, f: Optional[_io.TextIOWrapper] = None):
         kernels1 = 0
         shifts1 = 0
         kernels2 = 0
@@ -56,8 +58,8 @@ class SequentalNetwork():
         shifts4 = 0
 
         if f:
-            weights = np.array(list(f.readlines())).astype('float64')
-            
+            weights = np.array(list(f.readlines())).astype('float32')
+            print(weights[:20])
             if len(weights) >= 32*3*3 + 32 + 32*64*3*3 + 64 + 128*5*5*64 + 128 + 128*10 + 10:
                 kernels1 = weights[:32*3*3].reshape((32, 1, 3, 3))
                 shifts1 = weights[32*3*3 : 32*3*3 + 32].reshape((32))
@@ -81,7 +83,7 @@ class SequentalNetwork():
         self.__layers.append(DenseLayer(128, 10, weights4, shifts4, activation_func=activate_softmax))
 
 
-    def save_weights(self, f=0):
+    def save_weights(self, f: Optional[_io.TextIOWrapper] = None):
         if f:
             weights = np.concatenate(tuple([np.concatenate(layer.flatten_weights()) for layer in self.__layers]))
             f.writelines(list(map(to_string, weights)))
@@ -136,24 +138,25 @@ class SequentalNetwork():
             raise Exception('Fitting error: ' + str(e))
 
 
-    def feedforward(self, values: np.ndarray) -> np.ndarray:
+    def forward(self, values: np.ndarray[np.float32 | np.uint8], fitting: bool = False) -> np.ndarray[np.float32]:
         """
         Предсказание цифры
         :param values: матрица изображения с элементами 0-255
         :return: массив вероятностей для каждого класса
         """
-        values = center_and_scale_digit(values).reshape(1, 28, 28) / 255.0
+
+        if not fitting: values = center_and_scale_digit(values).reshape(1, 28, 28) / 255.0
 
         for layer in self.__layers:
-            values = layer.feedforward(values)
+            values = layer.forward(values, fitting)
 
         return values
     
-    def __call__(self, values: np.ndarray) -> np.ndarray:
-        return self.feedforward(values)
+    def __call__(self, values: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+        return self.forward(values)
 
 
-def categorical_crossentropy(y_true, y_pred):
+def categorical_crossentropy(y_true: np.ndarray[np.float32], y_pred: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
     return -(y_true * np.log(y_pred+0.001)).sum(axis=0)
 
 def to_string(s):

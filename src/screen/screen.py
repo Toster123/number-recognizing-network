@@ -169,7 +169,7 @@ class Screen(tk.Tk):
         img = img.convert('L')
         img = np.array(img).astype('uint8')
 
-        # img = img.reshape(28, 28, 1)
+        # img = img.reshape(28, 28)
         # plt.imshow(img, cmap='gray')
         # plt.show()
 

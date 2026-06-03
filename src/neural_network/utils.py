@@ -51,12 +51,12 @@ class ProgressBridge:
             yield uid, msg
 
 
-def center_and_scale_digit(image: np.ndarray) -> np.ndarray:
+def center_and_scale_digit(image: np.ndarray[np.uint8]) -> np.ndarray[np.float32]:
     """Центрирование и масштабирование изображения (фон уже черный)"""
     
     image[image < 20] = 0  # Убираем шум
-    img = Image.fromarray(image.astype('uint8').reshape(28, 28), mode='L')
-
+    img = Image.fromarray(image.reshape(28, 28).astype('uint8'), mode='L')
+    
     bbox = img.getbbox()
     if bbox == None:
         return image
