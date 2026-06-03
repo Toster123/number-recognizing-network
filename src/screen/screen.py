@@ -173,7 +173,7 @@ class Screen(tk.Tk):
         # plt.imshow(img, cmap='gray')
         # plt.show()
 
-        img = img.reshape(28, 28, 1)
+        img = img.reshape(28, 28)
 
         # инвертируем чб цвета
         img = img * -1

@@ -87,4 +87,4 @@ def center_and_scale_digit(image: np.ndarray) -> np.ndarray:
     centred_digit.paste(scaled_digit, (wstart, hstart))
 
     # Конвертация в np.array
-    return np.array(centred_digit).astype('float32').reshape(28, 28, 1)
+    return np.array(centred_digit).astype('float32').reshape(28, 28)

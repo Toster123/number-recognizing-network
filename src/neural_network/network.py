@@ -2,7 +2,7 @@ import os
 import asyncio
 import keras
 from tqdm import tqdm
-from keras.api.datasets import mnist
+from keras.datasets import mnist
 from keras.models import load_model
 from .layers import *
 from .utils import ProgressBridge, center_and_scale_digit
@@ -16,7 +16,7 @@ class SequentalNetwork():
         self.__weights_path = os.path.join(os.getcwd(), 'weights.txt')
         self.__weights_backup_path = os.path.join(os.getcwd(), 'weights_backup.txt')
 
-        if "PTW" in os.environ:
+        if "PARSE_FITTED_WEIGHTS" in os.environ:
             self.parse_trained_weights()
 
         if not (os.path.exists(self.__weights_path) and (f:=open(self.__weights_path, 'r'))):
@@ -36,18 +36,12 @@ class SequentalNetwork():
             with open(self.__weights_path, 'w') as f:
                 f.writelines(list(map(to_string, model.layers[0].get_weights()[0].reshape((3, 3, 1, 32)).transpose((3, 2, 0, 1)).flatten())))
                 f.writelines(list(map(to_string, model.layers[0].get_weights()[1].reshape((32)))))
-                f.writelines(list(map(to_string, model.layers[1].get_weights()[0].reshape((3, 3, 32, 32)).transpose((3, 2, 0, 1)).flatten())))
-                f.writelines(list(map(to_string, model.layers[1].get_weights()[1].reshape((32)))))
-                f.writelines(list(map(to_string, model.layers[3].get_weights()[0].reshape((3, 3, 32, 64)).transpose((3, 2, 0, 1)).flatten())))
-                f.writelines(list(map(to_string, model.layers[3].get_weights()[1].reshape((64)))))
-                f.writelines(list(map(to_string, model.layers[4].get_weights()[0].reshape((3, 3, 64, 64)).transpose((3, 2, 0, 1)).flatten())))
-                f.writelines(list(map(to_string, model.layers[4].get_weights()[1].reshape((64)))))
-                f.writelines(list(map(to_string, model.layers[7].get_weights()[0].reshape((4 * 4 * 64, 256)).transpose((1, 0)).flatten())))
-                f.writelines(list(map(to_string, model.layers[7].get_weights()[1].reshape((256)))))
-                f.writelines(list(map(to_string, model.layers[8].get_weights()[0].reshape((256, 128)).transpose((1, 0)).flatten())))
-                f.writelines(list(map(to_string, model.layers[8].get_weights()[1].reshape((128)))))
-                f.writelines(list(map(to_string, model.layers[9].get_weights()[0].reshape((128, 10)).transpose((1, 0)).flatten())))
-                f.writelines(list(map(to_string, model.layers[9].get_weights()[1].reshape((10)))))
+                f.writelines(list(map(to_string, model.layers[2].get_weights()[0].reshape((3, 3, 32, 64)).transpose((3, 2, 0, 1)).flatten())))
+                f.writelines(list(map(to_string, model.layers[2].get_weights()[1].reshape((64)))))
+                f.writelines(list(map(to_string, model.layers[5].get_weights()[0].reshape((5 * 5 * 64, 128)).transpose((1, 0)).flatten())))
+                f.writelines(list(map(to_string, model.layers[5].get_weights()[1].reshape((128)))))
+                f.writelines(list(map(to_string, model.layers[7].get_weights()[0].reshape((128, 10)).transpose((1, 0)).flatten())))
+                f.writelines(list(map(to_string, model.layers[7].get_weights()[1].reshape((10)))))
 
                 f.close()
 
@@ -56,53 +50,35 @@ class SequentalNetwork():
         shifts1 = 0
         kernels2 = 0
         shifts2 = 0
-        kernels3 = 0
+        weights3 = 0
         shifts3 = 0
-        kernels4 = 0
+        weights4 = 0
         shifts4 = 0
-        weights5 = 0
-        shifts5 = 0
-        weights6 = 0
-        shifts6 = 0
-        weights7 = 0
-        shifts7 = 0
 
         if f:
-            weights = np.array(list(map(np.float64, f.readlines())))
-
-            if len(weights) >= 32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 + 256*4*4*64 + 256 + 128*256 + 128 + 128*10 + 10:
+            weights = np.array(list(f.readlines())).astype('float64')
+            
+            if len(weights) >= 32*3*3 + 32 + 32*64*3*3 + 64 + 128*5*5*64 + 128 + 128*10 + 10:
                 kernels1 = weights[:32*3*3].reshape((32, 1, 3, 3))
                 shifts1 = weights[32*3*3 : 32*3*3 + 32].reshape((32))
 
-                kernels2 = weights[32*3*3 + 32 : 32*3*3 + 32 + 32*32*3*3].reshape((32, 32, 3, 3))
-                shifts2 = weights[32*3*3 + 32 + 32*32*3*3 : 32*3*3 + 32 + 32*32*3*3 + 32].reshape((32))
+                kernels2 = weights[32*3*3 + 32 : 32*3*3 + 32 + 64*32*3*3].reshape((64, 32, 3, 3))
+                shifts2 = weights[32*3*3 + 32 + 64*32*3*3 : 32*3*3 + 32 + 64*32*3*3 + 64].reshape((64))
 
-                kernels3 = weights[32*3*3 + 32 + 32*32*3*3 + 32 : 32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3].reshape((64, 32, 3, 3))
-                shifts3 = weights[32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 : 32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64].reshape((64))
+                weights3 = weights[32*3*3 + 32 + 64*32*3*3 + 64 : 32*3*3 + 32 + 64*32*3*3 + 64 + 128*5*5*64].reshape((128, 5*5*64))
+                shifts3 = weights[32*3*3 + 32 + 64*32*3*3 + 64 + 128*5*5*64 : 32*3*3 + 32 + 64*32*3*3 + 64 + 128*5*5*64 + 128].reshape((128))
 
-                kernels4 = weights[32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 : 32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3].reshape((64, 64, 3, 3))
-                shifts4 = weights[32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 : 32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64].reshape((64))
-
-                weights5 = weights[32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 : 32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 + 256*4*4*64].reshape((256, 64*4*4))
-                shifts5 = weights[32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 + 256*4*4*64 : 32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 + 256*4*4*64 + 256].reshape((256))
-
-                weights6 = weights[32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 + 256*4*4*64 + 256 : 32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 + 256*4*4*64 + 256 + 128*256].reshape((128, 256))
-                shifts6 = weights[32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 + 256*4*4*64 + 256 + 128*256 : 32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 + 256*4*4*64 + 256 + 128*256 + 128].reshape((128))
-
-                weights7 = weights[32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 + 256*4*4*64 + 256 + 128*256 + 128 : 32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 + 256*4*4*64 + 256 + 128*256 + 128 + 128*10].reshape((10, 128))
-                shifts7 = weights[32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 + 256*4*4*64 + 256 + 128*256 + 128 + 128*10 : 32*3*3 + 32 + 32*32*3*3 + 32 + 64*32*3*3 + 64 + 64*64*3*3 + 64 + 256*4*4*64 + 256 + 128*256 + 128 + 128*10 + 10].reshape((10))
+                weights4 = weights[32*3*3 + 32 + 64*32*3*3 + 64 + 128*5*5*64 + 128 : 32*3*3 + 32 + 64*32*3*3 + 64 + 128*5*5*64 + 128 + 128*10].reshape((10, 128))
+                shifts4 = weights[32*3*3 + 32 + 64*32*3*3 + 64 + 128*5*5*64 + 128 + 128*10 : 32*3*3 + 32 + 64*32*3*3 + 64 + 128*5*5*64 + 128 + 128*10 + 10].reshape((10))
 
         self.__layers = []
         self.__layers.append(Convolution2DLayer((1, 28, 28), (3, 3), 32, kernels1, shifts1))
-        self.__layers.append(Convolution2DLayer((32, 26, 26), (3, 3), 32, kernels2, shifts2))
-        self.__layers.append(MaxPooling2DLayer((32, 24, 24), (2, 2)))
-        self.__layers.append(Convolution2DLayer((32, 12, 12), (3, 3), 64, kernels3, shifts3))
-        self.__layers.append(Convolution2DLayer((64, 10, 10), (3, 3), 64, kernels4, shifts4))
-        self.__layers.append(MaxPooling2DLayer((64, 8, 8), (2, 2)))
-        self.__layers.append(FlattenLayer((64, 8, 8)))
-        self.__layers.append(DenseLayer(64*4*4, 256, weights5, shifts5))
-        self.__layers.append(DenseLayer(256, 128, weights6, shifts6))
-        self.__layers.append(DenseLayer(128, 10, weights7, shifts7, activation_func=activate_softmax))
+        self.__layers.append(MaxPooling2DLayer((32, 26, 26), (2, 2)))
+        self.__layers.append(Convolution2DLayer((32, 13, 13), (3, 3), 64, kernels2, shifts2))
+        self.__layers.append(MaxPooling2DLayer((64, 11, 11), (2, 2)))
+        self.__layers.append(FlattenLayer((64, 5, 5)))
+        self.__layers.append(DenseLayer(64*5*5, 128, weights3, shifts3))
+        self.__layers.append(DenseLayer(128, 10, weights4, shifts4, activation_func=activate_softmax))
 
 
     def save_weights(self, f=0):
@@ -133,8 +109,8 @@ class SequentalNetwork():
 
             EPOCH_SIZE = x_train.shape[0] // BATCH_SIZE
 
-            x_train = x_train.reshape(x_train.shape[0], 28, 28, 1) / 255.0
-            x_test = x_test.reshape(x_test.shape[0], 28, 28, 1) / 255.0
+            x_train = x_train.reshape(x_train.shape[0], 28, 28) / 255.0
+            x_test = x_test.reshape(x_test.shape[0], 28, 28) / 255.0
             
             y_train = keras.utils.to_categorical(y_train, 10)
             y_test = keras.utils.to_categorical(y_test, 10)
@@ -166,11 +142,7 @@ class SequentalNetwork():
         :param values: матрица изображения с элементами 0-255
         :return: массив вероятностей для каждого класса
         """
-        values = center_and_scale_digit(values).astype('float32').reshape(1, 28, 28, 1) / 255.0
-        
-        # import matplotlib.pyplot as plt
-        # plt.imshow(values[0], cmap='gray')
-        # plt.show()
+        values = center_and_scale_digit(values).reshape(1, 28, 28) / 255.0
 
         for layer in self.__layers:
             values = layer.feedforward(values)
