@@ -1,7 +1,7 @@
 .idea
 .vscode
 venv
-*.h5
+/*.h5
 *__pycache__
 .DS_Store
 weights_*.txt

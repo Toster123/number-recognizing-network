@@ -91,11 +91,12 @@ class SequentalNetwork():
             f.writelines(list(map(to_string, weights)))
 
 
-    async def fit(self, bridge: ProgressBridge, epochs: int = 10, batch_size: int = 64, dataset_size: float = 0.1) -> None:
+    async def fit(self, bridge: ProgressBridge, epochs: int = 10, batch_size: int = 64, dataset_size: float = 0.1, learning_rate: float = 0.01) -> None:
 
         EPOCHS = epochs
         BATCH_SIZE = batch_size
         DATASET_SIZE = dataset_size
+        LEARNING_RATE = learning_rate
 
         try:
             # with open(self.__weights_backup_path, 'w') as f:

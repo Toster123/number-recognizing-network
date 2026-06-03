@@ -38,6 +38,7 @@ class Screen(tk.Tk):
         self.epochs_input = tk.Spinbox(self, from_=1, to=100, textvariable=tk.IntVar(value=10))
         self.batch_size_input = tk.Spinbox(self, from_=1, to=5000, increment=16, textvariable=tk.IntVar(value=64))
         self.dataset_size_input = tk.Spinbox(self, from_=0, to=1, increment=0.1, textvariable=tk.DoubleVar(value=0.1))
+        self.learning_rate_input = tk.Spinbox(self, from_=0.001, to=0.5, increment=0.001, textvariable=tk.DoubleVar(value=0.01))
         self.fit_network_button = tk.Button(self, text="Start fitting", command=self.start_fitting)
         self.stop_fitting_button = tk.Button(self, text="Stop fitting", command=self.stop_fitting)
         self.fit_network_log = tk.Text(self)
@@ -65,9 +66,10 @@ class Screen(tk.Tk):
         self.epochs_input.grid(row=0, column=3, pady=2, padx=2)
         self.batch_size_input.grid(row=1, column=3, pady=2, padx=2)
         self.dataset_size_input.grid(row=2, column=3, pady=2, padx=2)
-        self.fit_network_button.grid(row=3, column=3, pady=2, padx=2)
-        self.stop_fitting_button.grid(row=4, column=3, pady=2, padx=2)
-        self.fit_network_log.grid(row=5, rowspan=7, column=3, pady=2, sticky=W)
+        self.learning_rate_input.grid(row=3, column=3, pady=2, padx=2)
+        self.fit_network_button.grid(row=4, column=3, pady=2, padx=2)
+        self.stop_fitting_button.grid(row=5, column=3, pady=2, padx=2)
+        self.fit_network_log.grid(row=6, rowspan=6, column=3, pady=2, sticky=W)
 
         self.canvas.bind('<Button-1>', self.start_line)
         self.canvas.bind('<B1-Motion>', self.draw_line)
@@ -117,7 +119,7 @@ class Screen(tk.Tk):
             t2 = threading.Thread(target=start_loop, args=(self.progress_loop,), daemon=True)
             t2.start()
             
-            self.fit_task = asyncio.run_coroutine_threadsafe(self.network.fit(bridge, int(self.epochs_input.get()), int(self.batch_size_input.get()), float(self.dataset_size_input.get())), self.fit_loop)
+            self.fit_task = asyncio.run_coroutine_threadsafe(self.network.fit(bridge, int(self.epochs_input.get()), int(self.batch_size_input.get()), float(self.dataset_size_input.get()), float(self.learning_rate_input.get())), self.fit_loop)
             self.show_task = asyncio.run_coroutine_threadsafe(self.show_fit_progress(bridge), self.progress_loop)
         except Exception as e:
             self.fit_network_status.configure(text=str(e))

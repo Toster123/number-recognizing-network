@@ -19,7 +19,7 @@ class Layer():
         pass
 
     @abstractmethod
-    def update_weights(self) -> None:
+    def update_weights(self, lr: float) -> None:
         pass
 
     @abstractmethod
