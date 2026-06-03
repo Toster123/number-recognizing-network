@@ -1,8 +1,8 @@
 import numpy as np
 from typing import Optional
 from abc import abstractmethod
-from scipy.signal import correlate
 from .activations import ActivationFunction, ReLU, Softmax
+from .utils import im2col
 
 
 class Layer():
@@ -11,7 +11,7 @@ class Layer():
         pass
 
     @abstractmethod
-    def forward(self, values: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
+    def forward(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
         pass
 
     @abstractmethod
@@ -28,26 +28,37 @@ class Layer():
 
 
 class Convolution2DLayer(Layer):
-    def __init__(self, input_size: tuple = (1, 3, 3), kernel_size: tuple = (1, 3, 3), filters_count: int = 1, kernels: Optional[np.ndarray[np.float32]] = None, shifts: Optional[np.ndarray[np.float32]] = None):
+    def __init__(self, input_size: tuple = (1, 3, 3), kernel_size: tuple = (3, 3), filters_count: int = 1, kernels: Optional[np.ndarray[np.float32]] = None, shifts: Optional[np.ndarray[np.float32]] = None):
         super().__init__(input_size)
         self.__kernels = kernels if isinstance(kernels, np.ndarray) else np.random.normal(
             size=(filters_count, input_size[0], *kernel_size))
         self.__shifts = shifts if isinstance(
             shifts, np.ndarray) else np.random.normal(size=(filters_count))
         self.__output_size = (
-            filters_count, 1 + input_size[1] - kernel_size[1], 1 + input_size[2] - kernel_size[2])
+            filters_count, 1 + input_size[1] - kernel_size[0], 1 + input_size[2] - kernel_size[1])
         
         self.__d_kernels = None
         self.__d_shifts = None
 
-    def forward(self, values: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
-        result = np.empty((values.shape[0], *self.__output_size))
+    def forward(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
+        """
+        Реализация через im2col для оптимизации (превращения свертки в матричное умножение)
+        """
 
-        for n in range(values.shape[0]):
-            for k in range(self.__kernels.shape[0]):
-                result[n, k] = correlate(values[n], self.__kernels[k], mode='valid')
+        X_col = im2col(X, self.__kernels.shape[2:])
 
-        return ReLU.forward(result + self.__shifts[:, np.newaxis, np.newaxis])
+        kernel_col = self.__kernels.reshape((self.__kernels.shape[0], -1))
+        
+        # (N*H_out*W_out, K)
+        Z_flat = X_col @ kernel_col.T + self.__shifts
+
+        # (N, H_out, W_out, K)
+        Z = Z_flat.reshape(X.shape[0], self.__output_size[1], self.__output_size[2], self.__output_size[0])
+        
+        # (N, K, H_out, W_out)
+        Z = Z.transpose((0, 3, 1, 2))
+
+        return ReLU.forward(Z)
 
     def flatten_weights(self) -> tuple[np.ndarray[np.float32], np.ndarray[np.float32]]:
         return self.__kernels.flatten(), self.__shifts.flatten()
@@ -60,17 +71,21 @@ class MaxPooling2DLayer(Layer):
         self.__output_size = (
             input_size[0], input_size[1] // kernel_size[0], input_size[2] // kernel_size[1])
 
-    def forward(self, values: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
-        result = np.empty((values.shape[0], *self.__output_size))
+    def forward(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
+        """
+        Преобразование каждой 2-мерной матрицы в 4-мерную с последующим поиском максимума и сохранением маски
+        """
+        
+        X = X[:, :, :self.__output_size[1]*self.__kernel_size[0], :self.__output_size[2]*self.__kernel_size[1]]
 
-        for n in range(values.shape[0]):
-            for k in range(self.__output_size[0]):
-                for i in range(self.__output_size[1]):
-                    for j in range(self.__output_size[2]):
-                        result[n, k, i, j] = np.max(values[n, k, self.__kernel_size[0]*i:self.__kernel_size[0]*i +
-                            self.__kernel_size[0], self.__kernel_size[1]*j:self.__kernel_size[1]*j + self.__kernel_size[1]])
+        X_windows = X.reshape((X.shape[0], self.__output_size[0], self.__output_size[1], self.__kernel_size[0], self.__output_size[2], self.__kernel_size[1]))
 
-        return result
+        X_windows = X_windows.transpose((0, 1, 2, 4, 3, 5))
+        Z = X_windows.max(axis=(-2,-1))
+
+        # self.__mask = (X_windows == Z[..., np.newaxis, np.newaxis])
+
+        return Z
 
     def flatten_weights(self) -> tuple[np.ndarray[np.float32], np.ndarray[np.float32]]:
         return np.array([]), np.array([])
@@ -80,8 +95,8 @@ class FlattenLayer(Layer):
     def __init__(self, input_size: tuple = (1, 2, 2)):
         super().__init__(input_size)
 
-    def forward(self, values: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
-        return values.transpose((0, 2, 3, 1)).reshape(values.shape[0], -1)
+    def forward(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
+        return X.transpose((0, 2, 3, 1)).reshape(X.shape[0], -1)
 
     def flatten_weights(self) -> tuple[np.ndarray[np.float32], np.ndarray[np.float32]]:
         return np.array([]), np.array([])
@@ -100,10 +115,10 @@ class DenseLayer(Layer):
         self.__d_shifts = None
         self.__logits = None
 
-    def forward(self, values: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
+    def forward(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
         # todo: if cache_calcs and isinstance(self.__activation_func, Softmax):
-        #     self.__logits = values @ self.__weights.T + self.__shifts
-        return self.__activation_func.forward(values @ self.__weights.T + self.__shifts)
+        #     self.__logits = X @ self.__weights.T + self.__shifts
+        return self.__activation_func.forward(X @ self.__weights.T + self.__shifts)
 
     def get_logits(self) -> Optional[np.ndarray[np.float32]]:
         return self.__logits

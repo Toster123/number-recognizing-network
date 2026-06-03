@@ -89,3 +89,25 @@ def center_and_scale_digit(image: np.ndarray[np.uint8]) -> np.ndarray[np.float32
     return np.array(centred_digit).reshape(1, 28, 28).astype('float32')
 
 center_and_scale_digits = np.vectorize(center_and_scale_digit, signature='(n,m,k)->(n,m,k)')
+
+
+def im2col(X: np.ndarray[np.float32], kernel_size: tuple = (3, 3)) -> np.ndarray[np.float32]:
+    """
+    Извлекает патчи из входного тензора
+    :param X: входной тензор (N, C, H, W)
+    :param kernel_size: размер ядер (H, W)
+    :return: X_col: (N*H_out*W_out, C*kH*kW)
+    """
+    N, C, H, W = X.shape
+    H_out = H - kernel_size[0] + 1
+    W_out = W - kernel_size[1] + 1
+    
+    # (N, C, H_out, W_out, kH, kW)
+    windows = np.lib.stride_tricks.sliding_window_view(X, kernel_size, axis=(2, 3))
+    
+    # (N, H_out, W_out, C, kH, kW)
+    windows = windows.transpose((0, 2, 3, 1, 4, 5))
+    
+    # Разворачиваем в 2D матрицу
+    X_col = windows.reshape(N * H_out * W_out, C * kernel_size[0] * kernel_size[1])
+    return X_col

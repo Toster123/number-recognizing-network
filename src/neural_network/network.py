@@ -6,6 +6,7 @@ from typing import Optional
 from tqdm import tqdm
 from keras.datasets import mnist
 from keras.models import load_model
+from sklearn.utils import shuffle
 from .layers import *
 from .utils import ProgressBridge, center_and_scale_digits
 from .activations import Softmax
@@ -75,9 +76,9 @@ class SequentalNetwork():
                 shifts4 = weights[32*3*3 + 32 + 64*32*3*3 + 64 + 128*5*5*64 + 128 + 128*10 : 32*3*3 + 32 + 64*32*3*3 + 64 + 128*5*5*64 + 128 + 128*10 + 10].reshape((10))
 
         self.__layers = []
-        self.__layers.append(Convolution2DLayer((1, 28, 28), (1, 3, 3), 32, kernels1, shifts1))
+        self.__layers.append(Convolution2DLayer((1, 28, 28), (3, 3), 32, kernels1, shifts1))
         self.__layers.append(MaxPooling2DLayer((32, 26, 26), (2, 2)))
-        self.__layers.append(Convolution2DLayer((32, 13, 13), (32, 3, 3), 64, kernels2, shifts2))
+        self.__layers.append(Convolution2DLayer((32, 13, 13), (3, 3), 64, kernels2, shifts2))
         self.__layers.append(MaxPooling2DLayer((64, 11, 11), (2, 2)))
         self.__layers.append(FlattenLayer((64, 5, 5)))
         self.__layers.append(DenseLayer(64*5*5, 128, weights3, shifts3))
@@ -104,6 +105,9 @@ class SequentalNetwork():
             print('Loading dataset')
             (x_train, y_train), (x_test, y_test) = mnist.load_data()
             print('Dataset loaded')
+
+            x_train, y_train = shuffle(x_train, y_train, random_state=42)
+            x_test, y_test = shuffle(x_test, y_test, random_state=42)
 
             x_train = x_train[:int(x_train.shape[0] * DATASET_SIZE)]
             y_train = y_train[:int(y_train.shape[0] * DATASET_SIZE)]
@@ -139,24 +143,24 @@ class SequentalNetwork():
             raise Exception('Fitting error: ' + str(e))
 
 
-    def forward(self, values: np.ndarray[np.float32 | np.uint8], fitting: bool = False) -> np.ndarray[np.float32]:
+    def forward(self, X: np.ndarray[np.float32 | np.uint8], fitting: bool = False) -> np.ndarray[np.float32]:
         """
         Предсказание цифры
-        :param values: матрица изображения с элементами 0-255
+        :param X: матрица изображения с элементами 0-255
         :return: массив вероятностей для каждого класса
         """
 
         if not fitting:
-            # values.flags.writeable = True
-            values = center_and_scale_digits(values).reshape(1, 1, 28, 28) / 255.0
+            X = center_and_scale_digits(X).reshape(1, 1, 28, 28) / 255.0
 
+        out = X
         for layer in self.__layers:
-            values = layer.forward(values, fitting)
+            out = layer.forward(out, fitting)
 
-        return values
+        return out
     
-    def __call__(self, values: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
-        return self.forward(values)
+    def __call__(self, X: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+        return self.forward(X)
 
 
 def to_string(s: object) -> str:

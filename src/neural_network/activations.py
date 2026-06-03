@@ -8,7 +8,7 @@ class ActivationFunction():
     
     @staticmethod
     @abstractmethod
-    def forward(values: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+    def forward(X: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
         pass
 
     @staticmethod
@@ -19,8 +19,8 @@ class ActivationFunction():
 
 class ReLU(ActivationFunction):
     @staticmethod
-    def forward(values: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
-        return np.maximum(values, 0)
+    def forward(X: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+        return np.maximum(X, 0)
 
     @staticmethod
     def backward(d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
