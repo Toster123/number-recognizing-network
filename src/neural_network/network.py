@@ -7,7 +7,7 @@ from tqdm import tqdm
 from keras.datasets import mnist
 from keras.models import load_model
 from .layers import *
-from .utils import ProgressBridge, center_and_scale_digit
+from .utils import ProgressBridge, center_and_scale_digits
 
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -74,9 +74,9 @@ class SequentalNetwork():
                 shifts4 = weights[32*3*3 + 32 + 64*32*3*3 + 64 + 128*5*5*64 + 128 + 128*10 : 32*3*3 + 32 + 64*32*3*3 + 64 + 128*5*5*64 + 128 + 128*10 + 10].reshape((10))
 
         self.__layers = []
-        self.__layers.append(Convolution2DLayer((1, 28, 28), (3, 3), 32, kernels1, shifts1))
+        self.__layers.append(Convolution2DLayer((1, 28, 28), (1, 3, 3), 32, kernels1, shifts1))
         self.__layers.append(MaxPooling2DLayer((32, 26, 26), (2, 2)))
-        self.__layers.append(Convolution2DLayer((32, 13, 13), (3, 3), 64, kernels2, shifts2))
+        self.__layers.append(Convolution2DLayer((32, 13, 13), (32, 3, 3), 64, kernels2, shifts2))
         self.__layers.append(MaxPooling2DLayer((64, 11, 11), (2, 2)))
         self.__layers.append(FlattenLayer((64, 5, 5)))
         self.__layers.append(DenseLayer(64*5*5, 128, weights3, shifts3))
@@ -111,8 +111,8 @@ class SequentalNetwork():
 
             EPOCH_SIZE = x_train.shape[0] // BATCH_SIZE
 
-            x_train = x_train.reshape(x_train.shape[0], 28, 28) / 255.0
-            x_test = x_test.reshape(x_test.shape[0], 28, 28) / 255.0
+            x_train = x_train.reshape(x_train.shape[0], 1, 28, 28) / 255.0
+            x_test = x_test.reshape(x_test.shape[0], 1, 28, 28) / 255.0
             
             y_train = keras.utils.to_categorical(y_train, 10)
             y_test = keras.utils.to_categorical(y_test, 10)
@@ -145,7 +145,7 @@ class SequentalNetwork():
         :return: массив вероятностей для каждого класса
         """
 
-        if not fitting: values = center_and_scale_digit(values).reshape(1, 28, 28) / 255.0
+        if not fitting: values = center_and_scale_digits(values).reshape(1, 1, 28, 28) / 255.0
 
         for layer in self.__layers:
             values = layer.forward(values, fitting)

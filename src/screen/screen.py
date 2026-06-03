@@ -173,14 +173,14 @@ class Screen(tk.Tk):
         # plt.imshow(img, cmap='gray')
         # plt.show()
 
-        img = img.reshape(28, 28)
+        img = img.reshape(1, 1, 28, 28)
 
         # инвертируем чб цвета
         img = img * -1
         img = img + 255
 
         # предстказание цифры
-        result = self.network(img)
+        result = self.network(img)[0]
         print(result)
 
         predicted_number = np.argmax(result)
