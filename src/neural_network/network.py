@@ -2,6 +2,7 @@ import os
 import asyncio
 import keras
 import _io
+import gc
 from typing import Optional
 from tqdm import tqdm
 from keras.datasets import mnist
@@ -82,7 +83,7 @@ class SequentalNetwork():
         self.__layers.append(MaxPooling2DLayer((64, 11, 11), (2, 2)))
         self.__layers.append(FlattenLayer((64, 5, 5)))
         self.__layers.append(DenseLayer(64*5*5, 128, weights3, shifts3))
-        self.__layers.append(DenseLayer(128, 10, weights4, shifts4, activation_func=Softmax))
+        self.__layers.append(DenseLayer(128, 10, weights4, shifts4, activation_func=Softmax()))
 
 
     def save_weights(self, f: Optional[_io.TextIOWrapper] = None) -> None:
@@ -135,6 +136,8 @@ class SequentalNetwork():
 
                     #MARK: todo: train
                     await asyncio.sleep(0.1)
+                    gc.collect()
+
                     loss = acc = 0
                     bridge.update(f"ep_{epoch}", n=batch+1, postfix=f"loss: {loss:.4f}; acc: {acc:.4f}")
                 

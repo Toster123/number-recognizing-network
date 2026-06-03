@@ -6,43 +6,50 @@ class ActivationFunction():
     def __init__(self):
         pass
     
-    @staticmethod
     @abstractmethod
-    def forward(X: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+    def forward(X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
         pass
 
-    @staticmethod
+    def __call__(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
+        return self.forward(X, cache_calcs)
+
     @abstractmethod
     def backward(d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+        pass
+    
+    def clear_cache(self):
         pass
 
 
 class ReLU(ActivationFunction):
-    @staticmethod
-    def forward(X: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+    def __init__(self):
+        self.__mask = None
+
+    def forward(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
+        if cache_calcs:
+            self.__mask = X > 0
         return np.maximum(X, 0)
 
-    @staticmethod
-    def backward(d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
-        pass
+    def backward(self, d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+        return d_Z * self.__mask
+
+    def clear_cache(self):
+        self.__mask = None
 
 
 class Softmax(ActivationFunction):
-    @staticmethod
-    def forward(logits: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
-        result = np.exp(logits - np.max(logits, axis=1, keepdims=True))
-        result /= result.sum(axis=1)
+    def forward(self, logits: np.ndarray[np.float32], _: bool = False) -> np.ndarray[np.float32]:
+        exp_z = np.exp(logits - np.max(logits, axis=1, keepdims=True))
+        probs = exp_z / exp_z.sum(axis=1)
 
-        return result
+        return probs
 
-    @staticmethod
-    def backward(d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+    def backward(self, d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
         return d_Z
 
     @staticmethod
-    def cross_entropy_loss_and_grads(logits: np.ndarray[np.float32], Y: np.ndarray[np.float32]) -> tuple[np.float32, np.ndarray[np.float32]]:
-        result = -(Y * np.log(logits+0.001)).sum(axis=1)
-        d_Y = np.exp(logits - np.max(logits, axis=1, keepdims=True))
-        d_Y /= d_Y.sum(axis=1)
-        d_logits = Y - d_Y
-        return result, d_logits
+    def cross_entropy_loss_and_grads(probs: np.ndarray[np.float32], Y: np.ndarray[np.float32]) -> tuple[np.float32, np.ndarray[np.float32]]:
+        loss = -np.sum(Y * np.log(probs + 1e-12)) / Y.shape[0]
+        d_logits = (probs - Y) / Y.shape[0]
+
+        return loss, d_logits

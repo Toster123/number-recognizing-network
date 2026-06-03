@@ -2,7 +2,7 @@ import numpy as np
 from typing import Optional
 from abc import abstractmethod
 from .activations import ActivationFunction, ReLU, Softmax
-from .utils import im2col
+from .utils import im2col, col2im
 
 
 class Layer():
@@ -37,6 +37,10 @@ class Convolution2DLayer(Layer):
         self.__output_size = (
             filters_count, 1 + input_size[1] - kernel_size[0], 1 + input_size[2] - kernel_size[1])
         
+        self.__activation_func = ReLU()
+
+        self.__X_col = None
+
         self.__d_kernels = None
         self.__d_shifts = None
 
@@ -47,10 +51,13 @@ class Convolution2DLayer(Layer):
 
         X_col = im2col(X, self.__kernels.shape[2:])
 
-        kernel_col = self.__kernels.reshape((self.__kernels.shape[0], -1))
+        if cache_calcs:
+            self.__X_col = X_col
+
+        kernels_col = self.__kernels.reshape((self.__kernels.shape[0], -1))
         
         # (N*H_out*W_out, K)
-        Z_flat = X_col @ kernel_col.T + self.__shifts
+        Z_flat = X_col @ kernels_col.T + self.__shifts
 
         # (N, H_out, W_out, K)
         Z = Z_flat.reshape(X.shape[0], self.__output_size[1], self.__output_size[2], self.__output_size[0])
@@ -58,7 +65,45 @@ class Convolution2DLayer(Layer):
         # (N, K, H_out, W_out)
         Z = Z.transpose((0, 3, 1, 2))
 
-        return ReLU.forward(Z)
+        return self.__activation_func(Z, cache_calcs)
+    
+    def backward(self, d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+        d_Z = self.__activation_func.backward(d_Z)
+        
+        N, K, H_out, W_out = d_Z.shape
+        
+        # Приводим градиент выхода к (N*L, K)
+        d_Z_flat = d_Z.transpose((0, 2, 3, 1)).reshape(N * H_out * W_out, K)
+        
+        # (K, C*kH*kW)
+        kernels_col = self.__kernels.reshape(K, -1)
+        
+        # (K, C*kH*kW)
+        self.__d_kernels = (d_Z_flat.T @ self.__X_col) / N
+        self.__d_kernels = self.__d_kernels.reshape(self.__kernels.shape)
+        
+        # Суммирование по батчу и размеру карты признаков
+        # (K)
+        self.__d_shifts = np.sum(d_Z_flat, axis=0) / N
+        
+        # (N*L, C*kH*kW)
+        d_X_col = d_Z_flat @ kernels_col
+        
+        # Собираем обратно в (N, C, H, W)
+        d_X = col2im(d_X_col, self.__X_shape, self.__kernel_size, self.__output_size)
+
+        return d_X
+
+    def update_weights(self, lr: float) -> None:
+        self.__kernels -= lr * self.__d_kernels
+        self.__shifts -= lr * self.__d_shifts
+
+        self.__X_col = None
+
+        self.__d_kernels = None
+        self.__d_shifts = None
+
+        self.__activation_func.clear_cache()
 
     def flatten_weights(self) -> tuple[np.ndarray[np.float32], np.ndarray[np.float32]]:
         return self.__kernels.flatten(), self.__shifts.flatten()
@@ -70,22 +115,38 @@ class MaxPooling2DLayer(Layer):
         self.__kernel_size = kernel_size
         self.__output_size = (
             input_size[0], input_size[1] // kernel_size[0], input_size[2] // kernel_size[1])
+        
+        self.__X_shape = None
+        self.__mask = None
 
     def forward(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
         """
         Преобразование каждой 2-мерной матрицы в 4-мерную с последующим поиском максимума и сохранением маски
         """
         
-        X = X[:, :, :self.__output_size[1]*self.__kernel_size[0], :self.__output_size[2]*self.__kernel_size[1]]
+        X_cut = X[:, :, :self.__output_size[1]*self.__kernel_size[0], :self.__output_size[2]*self.__kernel_size[1]]
 
-        X_windows = X.reshape((X.shape[0], self.__output_size[0], self.__output_size[1], self.__kernel_size[0], self.__output_size[2], self.__kernel_size[1]))
+        X_windows = X_cut.reshape((X.shape[0], self.__output_size[0], self.__output_size[1], self.__kernel_size[0], self.__output_size[2], self.__kernel_size[1]))
 
         X_windows = X_windows.transpose((0, 1, 2, 4, 3, 5))
         Z = X_windows.max(axis=(-2,-1))
 
-        # self.__mask = (X_windows == Z[..., np.newaxis, np.newaxis])
+        if cache_calcs:
+            self.__X_shape = X.shape
+            self.__mask = (X_windows == Z[..., np.newaxis, np.newaxis])
 
         return Z
+    
+    def backward(self, d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+        d_X_windows = d_Z[..., np.newaxis, np.newaxis] * self.__mask
+        
+        d_X = d_X_windows.transpose((0, 1, 2, 4, 3, 5))
+        
+        return d_X.reshape(self.__X_shape)
+
+    def update_weights(self, lr: float) -> None:
+        self.__X_shape = None
+        self.__mask = None
 
     def flatten_weights(self) -> tuple[np.ndarray[np.float32], np.ndarray[np.float32]]:
         return np.array([]), np.array([])
@@ -94,34 +155,64 @@ class MaxPooling2DLayer(Layer):
 class FlattenLayer(Layer):
     def __init__(self, input_size: tuple = (1, 2, 2)):
         super().__init__(input_size)
+        
+        self.__X_shape = None
 
     def forward(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
+        if cache_calcs:
+            self.__X_shape = X.shape
         return X.transpose((0, 2, 3, 1)).reshape(X.shape[0], -1)
+
+    def backward(self, d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+        return d_Z.reshape(self.__X_shape)
+
+    def update_weights(self, lr: float) -> None:
+        self.__X_shape = None
 
     def flatten_weights(self) -> tuple[np.ndarray[np.float32], np.ndarray[np.float32]]:
         return np.array([]), np.array([])
 
 
 class DenseLayer(Layer):
-    def __init__(self, input_size: int = 1, neurons_count: int = 1, weights: Optional[np.ndarray[np.float32]] = None, shifts: Optional[np.ndarray[np.float32]] = None, activation_func: type[ActivationFunction] = ReLU):
+    def __init__(self, input_size: int = 1, neurons_count: int = 1, weights: Optional[np.ndarray[np.float32]] = None, shifts: Optional[np.ndarray[np.float32]] = None, activation_func: ActivationFunction = ReLU()):
         super().__init__(input_size)
-        self.__activation_func = activation_func
         self.__weights = weights if isinstance(
             weights, np.ndarray) else np.random.normal(size=(neurons_count, input_size))
         self.__shifts = shifts if isinstance(
             shifts, np.ndarray) else np.random.normal(size=(neurons_count))
         
+        self.__activation_func = activation_func
+
+        self.__X = None
+
         self.__d_weights = None
         self.__d_shifts = None
-        self.__logits = None
 
     def forward(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
-        # todo: if cache_calcs and isinstance(self.__activation_func, Softmax):
-        #     self.__logits = X @ self.__weights.T + self.__shifts
-        return self.__activation_func.forward(X @ self.__weights.T + self.__shifts)
+        if cache_calcs:
+            self.__X = X
+        return self.__activation_func(X @ self.__weights.T + self.__shifts, cache_calcs)
 
-    def get_logits(self) -> Optional[np.ndarray[np.float32]]:
-        return self.__logits
+    def backward(self, d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+        d_Z = self.__activation_func.backward(d_Z)
+        N = d_Z.shape[0]
+
+        self.__d_weights = (d_Z.T @ self.__X) / N
+        self.__d_shifts = np.sum(d_Z, axis=0) / N
+
+        dX = d_Z @ self.__weights
+        return dX
+
+    def update_weights(self, lr: float) -> None:
+        self.__weights -= lr * self.__d_weights
+        self.__shifts -= lr * self.__d_shifts
+
+        self.__X = None
+
+        self.__d_weights = None
+        self.__d_shifts = None
+
+        self.__activation_func.clear_cache()
 
     def flatten_weights(self) -> tuple[np.ndarray[np.float32], np.ndarray[np.float32]]:
         return self.__weights.flatten(), self.__shifts.flatten()
