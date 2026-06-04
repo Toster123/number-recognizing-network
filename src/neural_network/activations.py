@@ -40,7 +40,7 @@ class ReLU(ActivationFunction):
 class Softmax(ActivationFunction):
     def forward(self, logits: np.ndarray[np.float32], _: bool = False) -> np.ndarray[np.float32]:
         exp_z = np.exp(logits - np.max(logits, axis=1, keepdims=True))
-        probs = exp_z / exp_z.sum(axis=1)
+        probs = exp_z / exp_z.sum(axis=1)[:, np.newaxis]
 
         return probs
 

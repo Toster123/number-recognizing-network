@@ -22,7 +22,7 @@ class ProgressBridge:
             self._bars[uid] = bar
         return bar
 
-    def update(self, uid: str, n: int = 1, postfix: Optional[str] = None) -> None:
+    def update(self, uid: str, n: int = 1, postfix: Optional[dict] = None) -> None:
         """Обновляет бар и сразу отправляет строку в очередь"""
         with self._lock:
             if uid in self._bars:
@@ -58,7 +58,7 @@ class ProgressBridge:
 def to_string(s: object) -> str:
     return str(s)+"\n"
 
-def accuracy(Y_pred: np.ndarray[np.float32], Y_true: np.ndarray[np.float32]) -> np.float32:
+def accuracy(Y_pred: np.ndarray[np.float32], Y_true: np.ndarray[np.float32]) -> float:
     return np.mean(np.argmax(Y_pred, axis=1) == np.argmax(Y_true, axis=1))
 
 def center_and_scale_digit(image: np.ndarray[np.uint8]) -> np.ndarray[np.float32]:
@@ -98,9 +98,6 @@ def center_and_scale_digit(image: np.ndarray[np.uint8]) -> np.ndarray[np.float32
     # Конвертация в np.array
     return np.array(centred_digit).reshape(1, 28, 28).astype('float32')
 
-center_and_scale_digits = np.vectorize(center_and_scale_digit, signature='(n,m,k)->(n,m,k)')
-
-
 def im2col(X: np.ndarray[np.float32], kernel_size: tuple = (3, 3)) -> np.ndarray[np.float32]:
     """
     Извлекает патчи из входного тензора
@@ -121,3 +118,38 @@ def im2col(X: np.ndarray[np.float32], kernel_size: tuple = (3, 3)) -> np.ndarray
     # Разворачиваем в 2D матрицу
     X_col = windows.reshape(N * H_out * W_out, C * kernel_size[0] * kernel_size[1])
     return X_col
+
+def col2im(d_X_col: np.ndarray[np.float32], X_shape: tuple, kernel_size: tuple, output_size: tuple) -> np.ndarray[np.float32]:
+    """
+    Собирает градиенты по входу обратно в тензор (N, C, H, W)
+    Так как патчи перекрываются, градиенты суммируются
+    """
+    N, C, _, _ = X_shape
+    kH, kW = kernel_size
+    _, H_out, W_out = output_size
+    
+    # Восстанавливаем форму (N, H_out, W_out, C, kH, kW)
+    d_X_patch = d_X_col.reshape(N, H_out, W_out, C, kH, kW)
+
+    # (N, C, H_out, W_out, kH, kW)
+    d_X_patch = d_X_patch.transpose((0, 3, 1, 2, 4, 5))
+    
+    n_idx = np.arange(N)[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+    c_idx = np.arange(C)[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+
+    # Индексы строк и столбцов для каждого положения окна k
+    # (H_out, kH)
+    h_idx = np.tile(np.arange(H_out).reshape((H_out, 1)), (1, kH)) + np.tile(np.arange(kH).reshape((1, kH)), (H_out, 1))
+    # (W_out, kW)
+    w_idx = np.tile(np.arange(W_out).reshape((W_out, 1)), (1, kW)) + np.tile(np.arange(kW).reshape((1, kW)), (W_out, 1))
+    
+    # Расширяем до d_X_patch.shape
+    h_idx = h_idx[np.newaxis, np.newaxis, :, np.newaxis, :, np.newaxis] # (1, 1, H_out, 1, kH, 1)
+    w_idx = w_idx[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis, :] # (1, 1, 1, W_out, 1, kW)
+    
+    # Суммирование градиентов в перекрывающихся областях
+    d_X = np.zeros(X_shape, dtype=d_X_patch.dtype)
+
+    np.add.at(d_X, (n_idx, c_idx, h_idx, w_idx), d_X_patch)
+
+    return d_X

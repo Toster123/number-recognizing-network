@@ -1,15 +1,13 @@
 import os
-import asyncio
 import keras
 import _io
 import gc
 from typing import Optional
-from tqdm import tqdm
 from keras.datasets import mnist
 from keras.models import load_model
 from sklearn.utils import shuffle
 from .layers import *
-from .utils import ProgressBridge, center_and_scale_digits, to_string, accuracy
+from .utils import ProgressBridge, to_string, accuracy
 from .activations import Softmax
 
 import ssl
@@ -81,8 +79,9 @@ class SequentalNetwork():
         self.__layers.append(MaxPooling2DLayer((32, 26, 26), (2, 2)))
         self.__layers.append(Convolution2DLayer((32, 13, 13), (3, 3), 64, kernels2, shifts2))
         self.__layers.append(MaxPooling2DLayer((64, 11, 11), (2, 2)))
-        self.__layers.append(FlattenLayer((64, 5, 5)))
+        self.__layers.append(FlattenLayer())
         self.__layers.append(DenseLayer(64*5*5, 128, weights3, shifts3))
+        self.__layers.append(DropoutLayer(0.5))
         self.__layers.append(DenseLayer(128, 10, weights4, shifts4, activation_func=Softmax()))
 
 
@@ -113,8 +112,8 @@ class SequentalNetwork():
 
             X_train = X_train[:int(X_train.shape[0] * DATASET_SIZE)]
             Y_train = Y_train[:int(Y_train.shape[0] * DATASET_SIZE)]
-            X_test = X_test[:int(X_test.shape[0] * DATASET_SIZE)]
-            Y_test = Y_test[:int(X_test.shape[0] * DATASET_SIZE)]
+            X_test = X_test[:int(X_test.shape[0] * DATASET_SIZE * 2)]
+            Y_test = Y_test[:int(Y_test.shape[0] * DATASET_SIZE * 2)]
 
             EPOCH_SIZE = X_train.shape[0] // BATCH_SIZE
 
@@ -125,37 +124,40 @@ class SequentalNetwork():
             Y_test = keras.utils.to_categorical(Y_test, 10)
 
             for epoch in range(EPOCHS):
-                print(f"ep {epoch}")
+                print(f"Ep {epoch+1}")
                 
                 bridge.add_bar(f"ep_{epoch}", total=EPOCH_SIZE, desc=f"Epoch {epoch+1}/{EPOCHS}")
-                print("Bridge added")
 
                 X_train, Y_train = shuffle(X_train, Y_train, random_state=42)
-                print("Dataset shuffled")
+
+                loss_sum = acc_sum = 0
 
                 for batch in range(EPOCH_SIZE):
-                    print(f"batch {batch}")
+                    print(f"Batch {batch}")
+
                     X_batch = X_train[batch*BATCH_SIZE:(batch+1)*BATCH_SIZE]
                     Y_batch = Y_train[batch*BATCH_SIZE:(batch+1)*BATCH_SIZE]
 
                     Y_pred = self.forward(X_batch, fitting=True)
-                    print("Forwarded")
 
                     acc = accuracy(Y_pred, Y_batch)
                     loss, d_logits = Softmax.cross_entropy_loss_and_grads(Y_pred, Y_batch)
 
+                    loss_sum += loss
+                    acc_sum += acc
+
                     d_Z = d_logits
                     for layer in reversed(self.__layers):
                         d_Z = layer.backward(d_Z)
-                        print("Layer backwarded")
 
                     for layer in self.__layers:
                         layer.update_weights(LEARNING_RATE)
 
                     print("Weights updated, collecting")
+
                     gc.collect()
 
-                    bridge.update(f"ep_{epoch}", n=batch+1, postfix=f"loss: {loss:.4f}; acc: {acc:.4f}")
+                    bridge.update(f"ep_{epoch}", n=batch+1, postfix={"loss": round(loss_sum / (batch+1), 5), "acc": round(acc_sum / (batch+1), 5)})
                 
                 Y_train_pred = self.forward(X_train)
                 acc = accuracy(Y_train_pred, Y_train)
@@ -165,17 +167,23 @@ class SequentalNetwork():
                 val_acc = accuracy(Y_test_pred, Y_test)
                 val_loss, _ = Softmax.cross_entropy_loss_and_grads(Y_test_pred, Y_test)
 
+                print("Metrics got")
+
                 # with open(self.__weights_path, 'w') as f:
                 #     self.save_weights(f)
                 #     f.close()
 
-                bridge.update(f"ep_{epoch}", n=batch+1, postfix=f"train_loss: {loss:.4f}; train_acc: {acc:.4f}; val_loss: {val_loss:.4f}; val_acc: {val_acc:.4f}. Weights file updated.")
+                print("Weights file updated")
+
+                bridge.update(f"ep_{epoch}", n=batch+1, postfix={"train_loss": round(loss, 5), "train_acc": round(acc, 5), "val_loss": round(val_loss, 5), "val_acc": round(val_acc, 5)})
                 bridge.close_bar(f"ep_{epoch}")
 
             bridge.mark_finished()
         
         except Exception as e:
-            print(e)
+            import traceback
+            traceback.print_exc()
+
             bridge.add_bar(f"ep_{epoch+1}", total=1, desc=f"Fitting error: {str(e)}")
             bridge.update(f"ep_{epoch+1}", n=1)
             bridge.close_bar(f"ep_{epoch+1}")
@@ -188,14 +196,10 @@ class SequentalNetwork():
         :return: массив вероятностей для каждого класса
         """
 
-        if not fitting:
-            X = center_and_scale_digits(X).reshape(1, 1, 28, 28) / 255.0
-
-        pred = X
         for layer in self.__layers:
-            pred = layer.forward(pred, fitting)
+            X = layer.forward(X, fitting)
 
-        return pred
+        return X
     
     def __call__(self, X: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
         return self.forward(X)

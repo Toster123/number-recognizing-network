@@ -70,7 +70,6 @@ class Convolution2DLayer(Layer):
         return self.__activation_func(Z, cache_calcs)
     
     def backward(self, d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
-        print("Conv activation backward")
         d_Z = self.__activation_func.backward(d_Z)
         
         N, K, H_out, W_out = d_Z.shape
@@ -78,26 +77,21 @@ class Convolution2DLayer(Layer):
         # Приводим градиент выхода к (N*L, K)
         d_Z_flat = d_Z.transpose((0, 2, 3, 1)).reshape(N * H_out * W_out, K)
         
-        print("d_Z_flat got")
         # (K, C*kH*kW)
         kernels_col = self.__kernels.reshape(K, -1)
         
-        print("kernels_col got")
         # (K, C*kH*kW)
         self.__d_kernels = (d_Z_flat.T @ self.__X_col) / N
         self.__d_kernels = self.__d_kernels.reshape(self.__kernels.shape)
         
-        print("d_kernels got")
         # Суммирование по батчу и размеру карты признаков
         # (K)
         self.__d_shifts = np.sum(d_Z_flat, axis=0) / N
         
-        print("d_shifts got")
         # (N*L, C*kH*kW)
         d_X_col = d_Z_flat @ kernels_col
 
         # Собираем обратно в (N, C, H, W)
-        print("Col2im..")
         d_X = col2im(d_X_col, self.__X_shape, self.__kernels.shape[2:], self.__output_size)
 
         return d_X
@@ -155,7 +149,7 @@ class MaxPooling2DLayer(Layer):
         d_X_cut = d_X_windows.transpose((0, 1, 2, 4, 3, 5))
         d_X_cut = d_X_cut.reshape(self.__X_cut_shape)
 
-        d_X = np.zeros(self.__X_shape, dtype=np.float32)
+        d_X = np.zeros(self.__X_shape, dtype=d_X_cut.dtype)
         d_X[..., :self.__X_cut_shape[-2], :self.__X_cut_shape[-1]] = d_X_cut
 
         return d_X
@@ -170,9 +164,7 @@ class MaxPooling2DLayer(Layer):
 
 
 class FlattenLayer(Layer):
-    def __init__(self, input_size: tuple = (1, 2, 2)):
-        super().__init__(input_size)
-        
+    def __init__(self):
         self.__X_shape = None
 
     def forward(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
@@ -185,6 +177,32 @@ class FlattenLayer(Layer):
 
     def update_weights(self, lr: float) -> None:
         self.__X_shape = None
+
+    def flatten_weights(self) -> tuple[np.ndarray[np.float32], np.ndarray[np.float32]]:
+        return np.array([]), np.array([])
+
+
+class DropoutLayer(Layer):
+    def __init__(self, rate: float = 0.5):
+        """
+        Inverted Dropout
+        """
+        
+        self.__rate = rate
+
+        self.__mask = None
+
+    def forward(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
+        if cache_calcs:
+            self.__mask = np.random.uniform(size=X.shape) > self.__rate
+            X = X * self.__mask / (1 - self.__rate)
+        return X
+
+    def backward(self, d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+        return d_Z * self.__mask / (1 - self.__rate)
+
+    def update_weights(self, lr: float) -> None:
+        self.__mask = None
 
     def flatten_weights(self) -> tuple[np.ndarray[np.float32], np.ndarray[np.float32]]:
         return np.array([]), np.array([])

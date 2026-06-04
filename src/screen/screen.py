@@ -5,7 +5,7 @@ import numpy as np
 import tkinter as tk
 from tkinter import *
 from PIL import ImageGrab
-from ..neural_network.utils import ProgressBridge
+from ..neural_network.utils import ProgressBridge, center_and_scale_digit
 
 
 class Screen(tk.Tk):
@@ -36,8 +36,8 @@ class Screen(tk.Tk):
         self.fit_network_status = tk.Label(self, text="")
 
         self.epochs_input = tk.Spinbox(self, from_=1, to=100, textvariable=tk.IntVar(value=10))
-        self.batch_size_input = tk.Spinbox(self, from_=1, to=5000, increment=16, textvariable=tk.IntVar(value=1))
-        self.dataset_size_input = tk.Spinbox(self, from_=0, to=1, increment=0.1, textvariable=tk.DoubleVar(value=0.1))
+        self.batch_size_input = tk.Spinbox(self, from_=1, to=5000, increment=16, textvariable=tk.IntVar(value=8))
+        self.dataset_size_input = tk.Spinbox(self, from_=0, to=1, increment=0.01, textvariable=tk.DoubleVar(value=0.025))
         self.learning_rate_input = tk.Spinbox(self, from_=0.001, to=0.5, increment=0.001, textvariable=tk.DoubleVar(value=0.01))
         self.fit_network_button = tk.Button(self, text="Start fitting", command=self.start_fitting)
         self.stop_fitting_button = tk.Button(self, text="Stop fitting", command=self.stop_fitting)
@@ -138,7 +138,6 @@ class Screen(tk.Tk):
 
         # Отдаём строки в UI по мере готовности
         async for _, bar_str in bridge.stream():
-            print(bar_str) # todo
             if bar_str is None:
                 progress += str(latest_bar_str) + '\n'
             else:
@@ -175,14 +174,15 @@ class Screen(tk.Tk):
         # plt.imshow(img, cmap='gray')
         # plt.show()
 
-        img = img.reshape(1, 1, 28, 28)
-
         # инвертируем чб цвета
         img = img * -1
         img = img + 255
 
         # убираем шум
         img[img < 20] = 0
+
+        # приведение к формату MNIST
+        img = center_and_scale_digit(img).reshape(1, 1, 28, 28) / 255.0
 
         # предстказание цифры
         result = self.network(img)[0]
