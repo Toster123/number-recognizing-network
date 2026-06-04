@@ -37,7 +37,7 @@ class Screen(tk.Tk):
 
         self.epochs_input = tk.Spinbox(self, from_=1, to=100, textvariable=tk.IntVar(value=10))
         self.batch_size_input = tk.Spinbox(self, from_=1, to=5000, increment=16, textvariable=tk.IntVar(value=8))
-        self.dataset_size_input = tk.Spinbox(self, from_=0, to=1, increment=0.01, textvariable=tk.DoubleVar(value=0.025))
+        self.dataset_size_input = tk.Spinbox(self, from_=0, to=1, increment=0.01, textvariable=tk.DoubleVar(value=0.03))
         self.learning_rate_input = tk.Spinbox(self, from_=0.001, to=0.5, increment=0.001, textvariable=tk.DoubleVar(value=0.01))
         self.fit_network_button = tk.Button(self, text="Start fitting", command=self.start_fitting)
         self.stop_fitting_button = tk.Button(self, text="Stop fitting", command=self.stop_fitting)
@@ -69,7 +69,7 @@ class Screen(tk.Tk):
         self.learning_rate_input.grid(row=3, column=3, pady=2, padx=2)
         self.fit_network_button.grid(row=4, column=3, pady=2, padx=2)
         self.stop_fitting_button.grid(row=5, column=3, pady=2, padx=2)
-        self.fit_network_log.grid(row=6, rowspan=6, column=3, pady=2, sticky=W)
+        self.fit_network_log.grid(row=6, rowspan=6, column=3, columnspan=2, pady=2, sticky=W)
 
         self.canvas.bind('<Button-1>', self.start_line)
         self.canvas.bind('<B1-Motion>', self.draw_line)
@@ -86,11 +86,11 @@ class Screen(tk.Tk):
         self.fit_network_status.configure(text='')
     
     def stop_fitting(self):
-        if self.fit_loop is not None and self.fit_task is not None:
-            self.fit_loop.call_soon_threadsafe(self.fit_task.cancel)
+        if self.fit_loop is not None and self.fit_task is not None and not self.fit_task.done():
+            self.fit_task.cancel()
             self.fit_loop.stop()
-        if self.progress_loop is not None and self.show_task is not None:
-            self.progress_loop.call_soon_threadsafe(self.show_task.cancel)
+        if self.progress_loop is not None and self.show_task is not None and not self.show_task.done():
+            self.show_task.cancel()
             self.progress_loop.stop()
 
         self.fit_task = None
@@ -98,7 +98,7 @@ class Screen(tk.Tk):
         self.fit_loop = None
         self.progress_loop = None
         self.classify_button.configure(state=NORMAL)
-        self.fit_network_status.configure(text='Fitting stopped.')
+        self.fit_network_status.configure(text='Fitting stopped. Weights file contains last epoch results.')
 
     def start_fitting(self):
         try:

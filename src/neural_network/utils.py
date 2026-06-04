@@ -27,7 +27,7 @@ class ProgressBridge:
         with self._lock:
             if uid in self._bars:
                 self._bars[uid].n = n
-                if postfix: 
+                if postfix is not None: 
                     self._bars[uid].set_postfix(postfix)
 
                 # str(bar) даёт готовую строку вида " 40%|████      | 4/10 [00:00<00:00,  4.00it/s]"

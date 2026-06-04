@@ -2,6 +2,7 @@ import os
 import keras
 import _io
 import gc
+import asyncio
 from typing import Optional
 from keras.datasets import mnist
 from keras.models import load_model
@@ -33,7 +34,7 @@ class SequentalNetwork():
             if file.endswith(".h5"):
                 pth = os.path.join(os.getcwd(), file)
                 break
-        if pth:
+        if pth is not None:
             model = load_model(pth)
 
             with open(self.__weights_path, 'w') as f:
@@ -49,16 +50,16 @@ class SequentalNetwork():
                 f.close()
 
     def init_weights(self, f: Optional[_io.TextIOWrapper] = None) -> None:
-        kernels1 = 0
-        shifts1 = 0
-        kernels2 = 0
-        shifts2 = 0
-        weights3 = 0
-        shifts3 = 0
-        weights4 = 0
-        shifts4 = 0
+        kernels1 = None
+        shifts1 = None
+        kernels2 = None
+        shifts2 = None
+        weights3 = None
+        shifts3 = None
+        weights4 = None
+        shifts4 = None
 
-        if f:
+        if f is not None:
             weights = np.array(list(f.readlines())).astype('float32')
 
             if len(weights) >= 32*3*3 + 32 + 32*64*3*3 + 64 + 128*5*5*64 + 128 + 128*10 + 10:
@@ -86,7 +87,7 @@ class SequentalNetwork():
 
 
     def save_weights(self, f: Optional[_io.TextIOWrapper] = None) -> None:
-        if f:
+        if f is not None:
             weights = np.concatenate(tuple([np.concatenate(layer.flatten_weights()) for layer in self.__layers]))
             f.writelines(list(map(to_string, weights)))
 
@@ -133,6 +134,8 @@ class SequentalNetwork():
                 loss_sum = acc_sum = 0
 
                 for batch in range(EPOCH_SIZE):
+                    await asyncio.sleep(0)
+                    
                     print(f"Batch {batch}")
 
                     X_batch = X_train[batch*BATCH_SIZE:(batch+1)*BATCH_SIZE]
@@ -145,7 +148,7 @@ class SequentalNetwork():
 
                     loss_sum += loss
                     acc_sum += acc
-
+                    
                     d_Z = d_logits
                     for layer in reversed(self.__layers):
                         d_Z = layer.backward(d_Z)

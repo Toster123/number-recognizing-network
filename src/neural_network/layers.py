@@ -30,10 +30,9 @@ class Layer():
 class Convolution2DLayer(Layer):
     def __init__(self, input_size: tuple = (1, 3, 3), kernel_size: tuple = (3, 3), filters_count: int = 1, kernels: Optional[np.ndarray[np.float32]] = None, shifts: Optional[np.ndarray[np.float32]] = None):
         super().__init__(input_size)
-        self.__kernels = kernels if isinstance(kernels, np.ndarray) else np.random.normal(
+        self.__kernels = kernels if kernels is not None else np.random.normal(
             size=(filters_count, input_size[0], *kernel_size))
-        self.__shifts = shifts if isinstance(
-            shifts, np.ndarray) else np.random.normal(size=(filters_count))
+        self.__shifts = shifts if shifts is not None else np.random.normal(size=(filters_count))
         self.__output_size = (
             filters_count, 1 + input_size[1] - kernel_size[0], 1 + input_size[2] - kernel_size[1])
         
@@ -211,10 +210,8 @@ class DropoutLayer(Layer):
 class DenseLayer(Layer):
     def __init__(self, input_size: int = 1, neurons_count: int = 1, weights: Optional[np.ndarray[np.float32]] = None, shifts: Optional[np.ndarray[np.float32]] = None, activation_func: ActivationFunction = ReLU()):
         super().__init__(input_size)
-        self.__weights = weights if isinstance(
-            weights, np.ndarray) else np.random.normal(size=(neurons_count, input_size))
-        self.__shifts = shifts if isinstance(
-            shifts, np.ndarray) else np.random.normal(size=(neurons_count))
+        self.__weights = weights if weights is not None else np.random.normal(size=(neurons_count, input_size))
+        self.__shifts = shifts if shifts is not None else np.random.normal(size=(neurons_count))
         
         self.__activation_func = activation_func
 
