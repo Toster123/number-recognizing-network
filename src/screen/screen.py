@@ -36,7 +36,7 @@ class Screen(tk.Tk):
         self.fit_network_status = tk.Label(self, text="")
 
         self.epochs_input = tk.Spinbox(self, from_=1, to=100, textvariable=tk.IntVar(value=10))
-        self.batch_size_input = tk.Spinbox(self, from_=1, to=5000, increment=16, textvariable=tk.IntVar(value=64))
+        self.batch_size_input = tk.Spinbox(self, from_=1, to=5000, increment=16, textvariable=tk.IntVar(value=1))
         self.dataset_size_input = tk.Spinbox(self, from_=0, to=1, increment=0.1, textvariable=tk.DoubleVar(value=0.1))
         self.learning_rate_input = tk.Spinbox(self, from_=0.001, to=0.5, increment=0.001, textvariable=tk.DoubleVar(value=0.01))
         self.fit_network_button = tk.Button(self, text="Start fitting", command=self.start_fitting)
@@ -98,7 +98,7 @@ class Screen(tk.Tk):
         self.fit_loop = None
         self.progress_loop = None
         self.classify_button.configure(state=NORMAL)
-        self.fit_network_status.configure(text='Fitting stopped')
+        self.fit_network_status.configure(text='Fitting stopped.')
 
     def start_fitting(self):
         try:
@@ -134,11 +134,11 @@ class Screen(tk.Tk):
 
         progress = ''
         latest_bar_str = ''
-        last_ui_update = time.monotonic()
+        last_ui_update = 0
 
         # Отдаём строки в UI по мере готовности
         async for _, bar_str in bridge.stream():
-            print(bar_str)
+            print(bar_str) # todo
             if bar_str is None:
                 progress += str(latest_bar_str) + '\n'
             else:
@@ -151,7 +151,7 @@ class Screen(tk.Tk):
         else:
             self.fit_network_log.delete('1.0', tk.END)
             self.fit_network_log.insert('1.0', progress)
-            self.fit_network_status.configure(text='Fitting done!')
+            self.fit_network_status.configure(text='Fitting completed! See log for details.')
             self.classify_button.configure(state=NORMAL)
 
     def predict_number(self):

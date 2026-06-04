@@ -39,6 +39,7 @@ class Convolution2DLayer(Layer):
         
         self.__activation_func = ReLU()
 
+        self.__X_shape = None
         self.__X_col = None
 
         self.__d_kernels = None
@@ -52,6 +53,7 @@ class Convolution2DLayer(Layer):
         X_col = im2col(X, self.__kernels.shape[2:])
 
         if cache_calcs:
+            self.__X_shape = X.shape
             self.__X_col = X_col
 
         kernels_col = self.__kernels.reshape((self.__kernels.shape[0], -1))
@@ -68,6 +70,7 @@ class Convolution2DLayer(Layer):
         return self.__activation_func(Z, cache_calcs)
     
     def backward(self, d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
+        print("Conv activation backward")
         d_Z = self.__activation_func.backward(d_Z)
         
         N, K, H_out, W_out = d_Z.shape
@@ -75,22 +78,27 @@ class Convolution2DLayer(Layer):
         # Приводим градиент выхода к (N*L, K)
         d_Z_flat = d_Z.transpose((0, 2, 3, 1)).reshape(N * H_out * W_out, K)
         
+        print("d_Z_flat got")
         # (K, C*kH*kW)
         kernels_col = self.__kernels.reshape(K, -1)
         
+        print("kernels_col got")
         # (K, C*kH*kW)
         self.__d_kernels = (d_Z_flat.T @ self.__X_col) / N
         self.__d_kernels = self.__d_kernels.reshape(self.__kernels.shape)
         
+        print("d_kernels got")
         # Суммирование по батчу и размеру карты признаков
         # (K)
         self.__d_shifts = np.sum(d_Z_flat, axis=0) / N
         
+        print("d_shifts got")
         # (N*L, C*kH*kW)
         d_X_col = d_Z_flat @ kernels_col
-        
+
         # Собираем обратно в (N, C, H, W)
-        d_X = col2im(d_X_col, self.__X_shape, self.__kernel_size, self.__output_size)
+        print("Col2im..")
+        d_X = col2im(d_X_col, self.__X_shape, self.__kernels.shape[2:], self.__output_size)
 
         return d_X
 
@@ -98,6 +106,7 @@ class Convolution2DLayer(Layer):
         self.__kernels -= lr * self.__d_kernels
         self.__shifts -= lr * self.__d_shifts
 
+        self.__X_shape = None
         self.__X_col = None
 
         self.__d_kernels = None
@@ -117,6 +126,7 @@ class MaxPooling2DLayer(Layer):
             input_size[0], input_size[1] // kernel_size[0], input_size[2] // kernel_size[1])
         
         self.__X_shape = None
+        self.__X_cut_shape = None
         self.__mask = None
 
     def forward(self, X: np.ndarray[np.float32], cache_calcs: bool = False) -> np.ndarray[np.float32]:
@@ -124,7 +134,7 @@ class MaxPooling2DLayer(Layer):
         Преобразование каждой 2-мерной матрицы в 4-мерную с последующим поиском максимума и сохранением маски
         """
         
-        X_cut = X[:, :, :self.__output_size[1]*self.__kernel_size[0], :self.__output_size[2]*self.__kernel_size[1]]
+        X_cut = X[..., :self.__output_size[1]*self.__kernel_size[0], :self.__output_size[2]*self.__kernel_size[1]]
 
         X_windows = X_cut.reshape((X.shape[0], self.__output_size[0], self.__output_size[1], self.__kernel_size[0], self.__output_size[2], self.__kernel_size[1]))
 
@@ -133,6 +143,7 @@ class MaxPooling2DLayer(Layer):
 
         if cache_calcs:
             self.__X_shape = X.shape
+            self.__X_cut_shape = X_cut.shape
             self.__mask = (X_windows == Z[..., np.newaxis, np.newaxis])
 
         return Z
@@ -140,12 +151,18 @@ class MaxPooling2DLayer(Layer):
     def backward(self, d_Z: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
         d_X_windows = d_Z[..., np.newaxis, np.newaxis] * self.__mask
         
-        d_X = d_X_windows.transpose((0, 1, 2, 4, 3, 5))
-        
-        return d_X.reshape(self.__X_shape)
+
+        d_X_cut = d_X_windows.transpose((0, 1, 2, 4, 3, 5))
+        d_X_cut = d_X_cut.reshape(self.__X_cut_shape)
+
+        d_X = np.zeros(self.__X_shape, dtype=np.float32)
+        d_X[..., :self.__X_cut_shape[-2], :self.__X_cut_shape[-1]] = d_X_cut
+
+        return d_X
 
     def update_weights(self, lr: float) -> None:
         self.__X_shape = None
+        self.__X_cut_shape = None
         self.__mask = None
 
     def flatten_weights(self) -> tuple[np.ndarray[np.float32], np.ndarray[np.float32]]:

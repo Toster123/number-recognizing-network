@@ -55,6 +55,12 @@ class ProgressBridge:
             yield uid, msg
 
 
+def to_string(s: object) -> str:
+    return str(s)+"\n"
+
+def accuracy(Y_pred: np.ndarray[np.float32], Y_true: np.ndarray[np.float32]) -> np.float32:
+    return np.mean(np.argmax(Y_pred, axis=1) == np.argmax(Y_true, axis=1))
+
 def center_and_scale_digit(image: np.ndarray[np.uint8]) -> np.ndarray[np.float32]:
     """Центрирование и масштабирование изображения (фон уже черный)"""
     

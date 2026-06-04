@@ -9,7 +9,7 @@ from keras.datasets import mnist
 from keras.models import load_model
 from sklearn.utils import shuffle
 from .layers import *
-from .utils import ProgressBridge, center_and_scale_digits
+from .utils import ProgressBridge, center_and_scale_digits, to_string, accuracy
 from .activations import Softmax
 
 import ssl
@@ -105,44 +105,65 @@ class SequentalNetwork():
             #     f.close()
             
             print('Loading dataset')
-            (x_train, y_train), (x_test, y_test) = mnist.load_data()
+            (X_train, Y_train), (X_test, Y_test) = mnist.load_data()
             print('Dataset loaded')
 
-            x_train, y_train = shuffle(x_train, y_train, random_state=42)
-            x_test, y_test = shuffle(x_test, y_test, random_state=42)
+            X_train, Y_train = shuffle(X_train, Y_train, random_state=42)
+            X_test, Y_test = shuffle(X_test, Y_test, random_state=42)
 
-            x_train = x_train[:int(x_train.shape[0] * DATASET_SIZE)]
-            y_train = y_train[:int(y_train.shape[0] * DATASET_SIZE)]
-            x_test = x_test[:int(x_test.shape[0] * DATASET_SIZE)]
-            y_test = y_test[:int(x_test.shape[0] * DATASET_SIZE)]
+            X_train = X_train[:int(X_train.shape[0] * DATASET_SIZE)]
+            Y_train = Y_train[:int(Y_train.shape[0] * DATASET_SIZE)]
+            X_test = X_test[:int(X_test.shape[0] * DATASET_SIZE)]
+            Y_test = Y_test[:int(X_test.shape[0] * DATASET_SIZE)]
 
-            EPOCH_SIZE = x_train.shape[0] // BATCH_SIZE
+            EPOCH_SIZE = X_train.shape[0] // BATCH_SIZE
 
-            x_train = x_train.reshape(x_train.shape[0], 1, 28, 28) / 255.0
-            x_test = x_test.reshape(x_test.shape[0], 1, 28, 28) / 255.0
+            X_train = X_train.reshape(X_train.shape[0], 1, 28, 28) / 255.0
+            X_test = X_test.reshape(X_test.shape[0], 1, 28, 28) / 255.0
             
-            y_train = keras.utils.to_categorical(y_train, 10)
-            y_test = keras.utils.to_categorical(y_test, 10)
+            Y_train = keras.utils.to_categorical(Y_train, 10)
+            Y_test = keras.utils.to_categorical(Y_test, 10)
 
             for epoch in range(EPOCHS):
                 print(f"ep {epoch}")
-                bridge.add_bar(f"ep_{epoch}", total=EPOCH_SIZE, desc=f"Epoch {epoch+1}/{EPOCHS}")
-
-                x_train, y_train = shuffle(x_train, y_train, random_state=42)
                 
-                for batch in range(EPOCH_SIZE):
-                    batch_X = x_train[batch*BATCH_SIZE:(batch+1)*BATCH_SIZE]
-                    batch_Y = y_train[batch*BATCH_SIZE:(batch+1)*BATCH_SIZE]
+                bridge.add_bar(f"ep_{epoch}", total=EPOCH_SIZE, desc=f"Epoch {epoch+1}/{EPOCHS}")
+                print("Bridge added")
 
-                    #MARK: todo: train
-                    await asyncio.sleep(0.1)
+                X_train, Y_train = shuffle(X_train, Y_train, random_state=42)
+                print("Dataset shuffled")
+
+                for batch in range(EPOCH_SIZE):
+                    print(f"batch {batch}")
+                    X_batch = X_train[batch*BATCH_SIZE:(batch+1)*BATCH_SIZE]
+                    Y_batch = Y_train[batch*BATCH_SIZE:(batch+1)*BATCH_SIZE]
+
+                    Y_pred = self.forward(X_batch, fitting=True)
+                    print("Forwarded")
+
+                    acc = accuracy(Y_pred, Y_batch)
+                    loss, d_logits = Softmax.cross_entropy_loss_and_grads(Y_pred, Y_batch)
+
+                    d_Z = d_logits
+                    for layer in reversed(self.__layers):
+                        d_Z = layer.backward(d_Z)
+                        print("Layer backwarded")
+
+                    for layer in self.__layers:
+                        layer.update_weights(LEARNING_RATE)
+
+                    print("Weights updated, collecting")
                     gc.collect()
 
-                    loss = acc = 0
                     bridge.update(f"ep_{epoch}", n=batch+1, postfix=f"loss: {loss:.4f}; acc: {acc:.4f}")
                 
-                loss = acc = 0
-                val_loss = val_acc = 0
+                Y_train_pred = self.forward(X_train)
+                acc = accuracy(Y_train_pred, Y_train)
+                loss, _ = Softmax.cross_entropy_loss_and_grads(Y_train_pred, Y_train)
+
+                Y_test_pred = self.forward(X_test)
+                val_acc = accuracy(Y_test_pred, Y_test)
+                val_loss, _ = Softmax.cross_entropy_loss_and_grads(Y_test_pred, Y_test)
 
                 # with open(self.__weights_path, 'w') as f:
                 #     self.save_weights(f)
@@ -154,8 +175,11 @@ class SequentalNetwork():
             bridge.mark_finished()
         
         except Exception as e:
-            raise Exception('Fitting error: ' + str(e))
-
+            print(e)
+            bridge.add_bar(f"ep_{epoch+1}", total=1, desc=f"Fitting error: {str(e)}")
+            bridge.update(f"ep_{epoch+1}", n=1)
+            bridge.close_bar(f"ep_{epoch+1}")
+            bridge.mark_finished()
 
     def forward(self, X: np.ndarray[np.float32 | np.uint8], fitting: bool = False) -> np.ndarray[np.float32]:
         """
@@ -167,15 +191,11 @@ class SequentalNetwork():
         if not fitting:
             X = center_and_scale_digits(X).reshape(1, 1, 28, 28) / 255.0
 
-        out = X
+        pred = X
         for layer in self.__layers:
-            out = layer.forward(out, fitting)
+            pred = layer.forward(pred, fitting)
 
-        return out
+        return pred
     
     def __call__(self, X: np.ndarray[np.float32]) -> np.ndarray[np.float32]:
         return self.forward(X)
-
-
-def to_string(s: object) -> str:
-    return str(s)+"\n"
