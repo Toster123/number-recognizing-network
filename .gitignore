@@ -4,5 +4,5 @@ venv
 /*.h5
 *__pycache__
 .DS_Store
-weights_*.txt
+weights*.txt
 build
