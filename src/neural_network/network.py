@@ -156,9 +156,8 @@ class SequentalNetwork():
                     for layer in self.__layers:
                         layer.update_weights(LEARNING_RATE)
 
-                    print("Weights updated, collecting")
-
-                    gc.collect()
+                    if batch % 10 == 0:
+                        gc.collect()
 
                     bridge.update(f"ep_{epoch}", n=batch+1, postfix={"loss": round(loss_sum / (batch+1), 5), "acc": round(acc_sum / (batch+1), 5)})
                 
