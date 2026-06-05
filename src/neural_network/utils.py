@@ -153,3 +153,19 @@ def col2im(d_X_col: np.ndarray[np.float32], X_shape: tuple, kernel_size: tuple, 
     np.add.at(d_X, (n_idx, c_idx, h_idx, w_idx), d_X_patch)
 
     return d_X
+
+def he_init(out_ch: int, in_ch: int, kernel_size: tuple) -> np.ndarray[np.float32]:
+    """
+    He-инициализация для сверточного слоя
+    """
+    kH, kW = kernel_size
+    
+    fan_in = in_ch * kH * kW
+    std = np.sqrt(2.0 / fan_in)
+
+    return np.random.normal(0.0, std, (out_ch, in_ch, kH, kW))
+
+def he_init_dense(neurons_count: int, input_size: int) -> np.ndarray[np.float32]:
+    std = np.sqrt(2.0 / input_size)
+
+    return np.random.normal(0.0, std, (neurons_count, input_size))

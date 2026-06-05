@@ -42,10 +42,10 @@ class Screen(tk.Tk):
         self.dataset_label = tk.Label(self, text="Dataset %")
         self.lr_label = tk.Label(self, text="LR")
 
-        self.epochs_input = tk.Spinbox(self, from_=1, to=100, textvariable=tk.IntVar(value=10))
+        self.epochs_input = tk.Spinbox(self, from_=1, to=100, textvariable=tk.IntVar(value=5))
         self.batch_size_input = tk.Spinbox(self, from_=1, to=5000, increment=8, textvariable=tk.IntVar(value=16))
-        self.dataset_size_input = tk.Spinbox(self, from_=0, to=1, increment=0.01, textvariable=tk.DoubleVar(value=0.03))
-        self.learning_rate_input = tk.Spinbox(self, from_=0.001, to=0.5, increment=0.001, textvariable=tk.DoubleVar(value=0.01))
+        self.dataset_size_input = tk.Spinbox(self, from_=0, to=1, increment=0.01, textvariable=tk.DoubleVar(value=0.3))
+        self.learning_rate_input = tk.Spinbox(self, from_=0.001, to=0.5, increment=0.001, textvariable=tk.DoubleVar(value=0.03))
         self.fit_network_button = tk.Button(self, text="Start fitting", command=self.start_fitting)
         self.stop_fitting_button = tk.Button(self, text="Stop fitting", command=self.stop_fitting)
         self.fit_network_log = tk.Text(self)
@@ -171,7 +171,7 @@ class Screen(tk.Tk):
         else:
             self.fit_network_log.delete('1.0', tk.END)
             self.fit_network_log.insert('1.0', progress)
-            self.fit_network_status.configure(text='Fitting completed! See log for details.')
+            self.fit_network_status.configure(text='Fitting completed! See log for details. Weights file contains last epoch results.')
             self.classify_button.configure(state=NORMAL)
 
     def predict_number(self):

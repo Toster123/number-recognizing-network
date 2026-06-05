@@ -48,6 +48,8 @@ class SequentalNetwork():
                 f.writelines(list(map(to_string, model.layers[7].get_weights()[1].reshape((10)))))
 
                 f.close()
+            
+            print("Weights parsed and saved to weights.txt")
 
     def init_weights(self, f: Optional[_io.TextIOWrapper] = None) -> None:
         kernels1 = None
@@ -100,9 +102,9 @@ class SequentalNetwork():
         LEARNING_RATE = learning_rate
 
         try:
-            # with open(self.__weights_backup_path, 'w') as f:
-            #     self.save_weights(f)
-            #     f.close()
+            with open(self.__weights_backup_path, 'w') as f:
+                self.save_weights(f)
+                f.close()
             
             print('Loading dataset')
             (X_train, Y_train), (X_test, Y_test) = mnist.load_data()
@@ -124,10 +126,18 @@ class SequentalNetwork():
             Y_train = keras.utils.to_categorical(Y_train, 10)
             Y_test = keras.utils.to_categorical(Y_test, 10)
 
+            Y_test_pred = self.forward(X_test)
+            val_acc = accuracy(Y_test_pred, Y_test)
+            val_loss, _ = Softmax.cross_entropy_loss_and_grads(Y_test_pred, Y_test)
+
+            bridge.add_bar("ep_0", total=X_test.shape[0], desc="Current")
+            bridge.update("ep_0", n=X_test.shape[0], postfix={"train_loss": "-", "train_acc": "-", "val_loss": round(val_loss, 5), "val_acc": round(val_acc, 5)})
+            bridge.close_bar("ep_0")
+
             for epoch in range(EPOCHS):
                 print(f"Ep {epoch+1}")
                 
-                bridge.add_bar(f"ep_{epoch}", total=EPOCH_SIZE, desc=f"Epoch {epoch+1}/{EPOCHS}")
+                bridge.add_bar(f"ep_{epoch+1}", total=EPOCH_SIZE, desc=f"Epoch {epoch+1}/{EPOCHS}")
 
                 X_train, Y_train = shuffle(X_train, Y_train, random_state=42)
 
@@ -136,8 +146,6 @@ class SequentalNetwork():
                 for batch in range(EPOCH_SIZE):
                     await asyncio.sleep(0)
                     
-                    print(f"Batch {batch}")
-
                     X_batch = X_train[batch*BATCH_SIZE:(batch+1)*BATCH_SIZE]
                     Y_batch = Y_train[batch*BATCH_SIZE:(batch+1)*BATCH_SIZE]
 
@@ -159,11 +167,7 @@ class SequentalNetwork():
                     if batch % 10 == 0:
                         gc.collect()
 
-                    bridge.update(f"ep_{epoch}", n=batch+1, postfix={"loss": round(loss_sum / (batch+1), 5), "acc": round(acc_sum / (batch+1), 5)})
-                
-                Y_train_pred = self.forward(X_train)
-                acc = accuracy(Y_train_pred, Y_train)
-                loss, _ = Softmax.cross_entropy_loss_and_grads(Y_train_pred, Y_train)
+                    bridge.update(f"ep_{epoch+1}", n=batch+1, postfix={"loss": round(loss_sum / (batch+1), 5), "acc": round(acc_sum / (batch+1), 5)})
 
                 Y_test_pred = self.forward(X_test)
                 val_acc = accuracy(Y_test_pred, Y_test)
@@ -171,14 +175,14 @@ class SequentalNetwork():
 
                 print("Metrics got")
 
-                # with open(self.__weights_path, 'w') as f:
-                #     self.save_weights(f)
-                #     f.close()
+                with open(self.__weights_path, 'w') as f:
+                    self.save_weights(f)
+                    f.close()
 
                 print("Weights file updated")
 
-                bridge.update(f"ep_{epoch}", n=batch+1, postfix={"train_loss": round(loss, 5), "train_acc": round(acc, 5), "val_loss": round(val_loss, 5), "val_acc": round(val_acc, 5)})
-                bridge.close_bar(f"ep_{epoch}")
+                bridge.update(f"ep_{epoch+1}", n=batch+1, postfix={"train_loss": round(loss_sum / (batch+1), 5), "train_acc": round(acc_sum / (batch+1), 5), "val_loss": round(val_loss, 5), "val_acc": round(val_acc, 5)})
+                bridge.close_bar(f"ep_{epoch+1}")
 
             bridge.mark_finished()
         
