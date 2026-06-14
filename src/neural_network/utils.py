@@ -13,7 +13,7 @@ class ProgressBridge:
     def __init__(self):
         self._bars: dict[str, tqdm] = {}
         self._lock = threading.Lock()
-        self._q = queue.Queue()  # стандартный потокобезопасный Queue
+        self._q = queue.Queue() # стандартный потокобезопасный Queue
 
     def add_bar(self, uid: str, total: int, **kwargs) -> tqdm:
         """Создаёт новый прогресс-бар (не пишет в консоль)"""
@@ -39,7 +39,7 @@ class ProgressBridge:
             if uid in self._bars:
                 self._bars[uid].close()
                 del self._bars[uid]
-        self._q.put_nowait((uid, None))  # None = сигнал завершения бара
+        self._q.put_nowait((uid, None)) # None = сигнал завершения бара
 
     def mark_finished(self) -> None:
         """Сигнал о полном завершении вычислений"""

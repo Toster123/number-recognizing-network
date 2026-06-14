@@ -5,7 +5,7 @@ import numpy as np
 import tkinter as tk
 from tkinter import *
 from PIL import ImageGrab
-from ..neural_network.utils import ProgressBridge, center_and_scale_digit
+from .neural_network.utils import ProgressBridge, center_and_scale_digit
 
 
 class Screen(tk.Tk):
